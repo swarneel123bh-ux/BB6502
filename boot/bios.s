@@ -1,19 +1,3 @@
-; Buffer metadatas
-STDOUTPTR     = $2000     ; write index
-STDOUTBUFSIZ  = $2002     ; number of bytes written
-STDINREADPTR  = $2004     ; Read address for stdin
-STDINWRITEPTR = $2006     ; Write address for stdin
-STDINBUFSIZ   = $2008     ; Size of the stdin buffer
-
-; Buffers
-STDOUTBUF     = $2100     ; stdout buffer
-STDINBUF      = $2200     ; stdin buffer
-
-; Zero Page String Pointers
-STRPTR        = $00      ; zero-page pointer (2 bytes)
-
-
-
 ; -------------------------
 ; gets: copy null-terminated
 ; string into STDINBUF
@@ -23,12 +7,12 @@ gets:
   ; Wait till same flag is set to 0 by emulator again
   ; Assume that the buf size and pointer addresses are reset properly by the caller
   ; Once set, return
-  lda $fff8
+  lda stdin_get_data_into_buf_flag
   ora #$01
-  sta $fff8
+  sta stdin_get_data_into_buf_flag
 
 gets_wait:
-  lda $fff8
+  lda stdin_get_data_into_buf_flag
   beq gets_done
   jmp gets_wait
 
@@ -59,49 +43,7 @@ puts_loop:
   jmp puts_loop
 
 puts_done:
-  lda $fff2
+  lda stdout_flushbuf_flag
   ora #$1
-  sta $fff2
+  sta stdout_flushbuf_flag
   rts
-
-
-nmi:
-  rti
-
-irq:
-  rti
-
-
-
-; -------------------------
-; Emulator-visible metadata
-; -------------------------
-  .org $FFEE
-stdoutbufaddr:
-  .word STDOUTBUF     ; 0xFFEE - 0xFFEF
-stdoutbufsizaddr:
-  .word STDOUTBUFSIZ  ; 0xFFF0 - 0xFFF1
-stdoutbufflush:
-  .byte 0             ; 0xFFF2
-  .byte 0             ; 0xFFF3 (unused)
-
-stdinbufaddr:
-  .word STDINBUF      ; 0xFFF4 - 0xFFF5
-stdinbufsizaddr:
-  .word STDINBUFSIZ   ; 0xFFF6 - 0xFFF7
-stdinbufflag:
-  .byte 0             ; 0xFFF8
-  .byte 0             ; 0xFFF9
-
-
-
-; -------------------------
-; Vectors
-; -------------------------
-  .org $FFFA
-nmiv:
-  .word nmi           ; 0xFFFA - 0xFFFB (unused)
-resetv:
-  .word reset         ; 0xFFFC - 0xFFFC
-irqv:
-  .word irq           ; 0xFFFD - 0xFFFF (unused)
