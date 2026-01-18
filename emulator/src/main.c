@@ -4,15 +4,10 @@
 #include "include/shared.h"
 
 // Definitions required for the fake6502 emulator
-uint8_t read6502(uint16_t address) {
-  return MEM6502[address];
-}
-
-void write6502(uint16_t address, uint8_t value) {
-  MEM6502[address] = value;
-}
-
+uint8_t read6502(uint16_t address) { return MEM6502[address]; }
+void write6502(uint16_t address, uint8_t value) { MEM6502[address] = value; }
 extern void runDebugger();
+
 
 // Main program entry point
 int main(int argc, char** argv) {
@@ -35,6 +30,7 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Failed to allocate memory for 6502! Crashing...\n");
     return 1;
   }
+
   uint8_t tempbyte = 0x00;
   uint16_t tempaddr = 0x0000;
   int bytesRead = 0;

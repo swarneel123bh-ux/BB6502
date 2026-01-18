@@ -178,21 +178,20 @@ uint8_t sp, a, x, y, status;
 //helper variables
 extern uint32_t instructions; //keep track of total instructions executed
 extern uint32_t clockticks6502, clockgoal6502;
-uint16_t oldpc, ea, reladdr, value, result;
-uint8_t opcode, oldstatus;
+uint16_t        oldpc, ea, reladdr, value, result;
+uint8_t         opcode, oldstatus;
 
 //externally supplied functions
-extern uint8_t read6502(uint16_t address);
-extern void write6502(uint16_t address, uint8_t value);
+extern uint8_t  read6502(uint16_t address);
+extern void     write6502(uint16_t address, uint8_t value);
 
 //a few general functions used by various other functions
-void push16(uint16_t pushval);
-void push8(uint8_t pushval);
-uint16_t pull16();
-uint8_t pull8();
-void reset6502();
-//static void (*addrtable[256])();
-// static void (*optable[256])();
+void      push16(uint16_t pushval);
+void      push8(uint8_t pushval);
+uint16_t  pull16();
+uint8_t   pull8();
+void      reset6502();
+
 uint8_t penaltyop, penaltyaddr;
 
 //addressing mode functions, calculates effective addresses

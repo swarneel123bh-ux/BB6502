@@ -39,3 +39,6 @@ void sigintHandler(int signum);
 
 // Function to get character sync-ly without messing up the stdin buffer
 int getCharacter();
+
+// Function to get a whole line
+int getLine(char* linebuf, size_t linebufsiz);

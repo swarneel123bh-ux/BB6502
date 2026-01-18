@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -28,6 +27,9 @@ uint16_t ixReg;       // Address of the Interface Status Register
 int runmode;
 bool takeNextStep;
 
+#define STEPPING 0
+#define RUNNING 1
+
 // Function to trigger an interrupt because of a keypress
 // Sends a byte to uart and calls irq
 // The emulator will respond to a get_c request when b3 of ixReg is set, the irq must clear the bit
@@ -35,3 +37,13 @@ void sendToUart(uint8_t k);
 
 // Function to read from the uart when b0 ixReg flag is set
 uint8_t readFromUart();
+
+// 6502 screen state tracker
+typedef struct screen6502 {
+  char screen[65][65];      // 65 strings act like a 64 x 64 wide screen
+  int cursx, cursy;         // Cursor positions acting as indices
+} screen6502;
+
+
+
+
