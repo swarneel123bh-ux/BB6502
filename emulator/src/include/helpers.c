@@ -130,7 +130,7 @@ int nBreakpoints = 0;
 
 // Creates a breakpoint by address in mem
 // Symbol breakpoints need to be taken care of by caller
-void setBreakpoint(uint8_t bp) {
+void setBreakpoint(uint16_t bp) {
   if (bpListSize <= 0) { 
     bpListSize = 10; 
     bpList = (uint16_t*) malloc(sizeof(uint16_t) * bpListSize);

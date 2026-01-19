@@ -50,7 +50,7 @@ int nBreakpoints;
 
 // Creates a breakpoint via address
 // Symbol breakpoints need to be converted to address by caller
-void setBreakpoint(uint8_t bp);
+void setBreakpoint(uint16_t bp);
 
 // Removes breakpoint by addr
 // Symbol breakpoints need to be converted to address by caller
