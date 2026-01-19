@@ -43,6 +43,7 @@ void runContinuous() {
     if (read6502(ixReg) & 0x01) { putchar(readFromUart()); }
     int k = getKeyAsync();
     if (k != -1) sendToUart(k);
+    // if (checkIfBp()) break;
     step6502();
   }
 
@@ -69,7 +70,7 @@ void runDebugger() {
   dbgRunning = true;
   while ( dbgRunning ) {  
     
-    printf(" [cdhmrsq]>>");
+    printf(" [bcdhmrsq]>>");
     if (getLine(buf, sizeof(buf)) == 0) {
       fprintf(stderr, "getLine: input failure!\n");
       exit(1);
@@ -83,6 +84,19 @@ void runDebugger() {
     int c = tok[0];
 
     switch(c) {
+      // Add breakpoint
+      case 'b': {
+        tok = strtok(NULL, " \t\n");
+        if (!tok) {
+          setBreakpoint(pc);  // If no addr/symbol given set at current addr
+          break;
+        }
+
+        // Set at given addr (CHECK IF ADDR/SYMBOL FIRST)
+        char* end;
+        uint16_t bp = strtoul(tok, &end, 0);
+        setBreakpoint(bp);
+      } break;
 
       // Run in continuous mode
       case 'c': {
@@ -126,14 +140,25 @@ void runDebugger() {
       // Display the help contents
       case 'h': {
         printf("Help : -\n");
+        printf("b [./addr/symbol]: Create a breakpoint at [curr instr/addr/symbol]\n");
         printf("c: Continue the program from current state\n");
         printf("d [n]: Disassemble next 5/[n] instructions\n");
         printf("h: Display this help\n");
+        printf("l: List all breakpoints\n");
         printf("m [start] [end]: Display memory contents from a start location to an end location\n");
         printf("r: Display the register contents\n");
         printf("s [n]: Step the program with one/[n] instruction\n");
         printf("\n");
       } break;
+
+      case 'l':
+      for (int i = 0; i < nBreakpoints; i ++) {
+        char line[64]; 
+        memset(line, 0, sizeof(line));
+        int instrlen = disassemble_6502(bpList[i], read6502, line); 
+        printf("%04hx\t%s\n", bpList[i], line);
+      }
+      break;
 
 
       // Display the 6502 memory contents in a given range
@@ -202,6 +227,9 @@ void runDebugger() {
           memset(line, 0, sizeof(line));
           instrlen = disassemble_6502(pc, read6502, line); 
           printf("\t%s\n", line); 
+
+          // if (checkIfBp()) { } 
+
           step6502();
           if (read6502(ixReg) & 0b10000000) { progExit = true; printf("  Program exited\n"); break; }
           if (read6502(ixReg) & 0x40) break;

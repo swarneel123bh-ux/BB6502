@@ -42,3 +42,26 @@ int getCharacter();
 
 // Function to get a whole line
 int getLine(char* linebuf, size_t linebufsiz);
+
+// Stores the list of currently active breakpoints
+uint16_t* bpList;
+int bpListSize;
+int nBreakpoints;
+
+// Creates a breakpoint via address
+// Symbol breakpoints need to be converted to address by caller
+void setBreakpoint(uint8_t bp);
+
+// Removes breakpoint by addr
+// Symbol breakpoints need to be converted to address by caller
+void rmBreakpoint(uint8_t bp);
+
+
+
+
+
+
+
+
+
+

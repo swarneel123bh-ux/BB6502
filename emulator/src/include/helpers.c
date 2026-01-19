@@ -124,3 +124,58 @@ int getLine(char* linebuf, size_t linebufsiz) {
 
   return strlen(linebuf);
 }
+
+int bpListSize = 0;
+int nBreakpoints = 0;
+
+// Creates a breakpoint by address in mem
+// Symbol breakpoints need to be taken care of by caller
+void setBreakpoint(uint8_t bp) {
+  if (bpListSize <= 0) { 
+    bpListSize = 10; 
+    bpList = (uint16_t*) malloc(sizeof(uint16_t) * bpListSize);
+    memset(bpList, 0xFFFF, sizeof(uint16_t) * bpListSize);
+  }
+
+  if ((float)(nBreakpoints / bpListSize) > 0.7f) {
+    bpListSize *= 2;
+    uint16_t* tmp = realloc(bpList, bpListSize * sizeof(uint8_t));
+    if (!tmp) {
+      fprintf(stderr, "setBreakpoint [fatal]: realloc:");
+      perror(" ");
+      exit(1);
+    }
+    bpList = tmp;
+  }
+
+  bpList[nBreakpoints++] = bp;
+  return;
+}
+
+// Removes created breakpoint by address
+// Symbol breakpoints need to be taken care of by caller
+void rmBreakpoint(uint8_t bp) {
+  int l = 0, r = nBreakpoints - 1;
+  int mid = (l + r) / 2;
+
+  while (bpList[mid] != bp && l < r) {
+    if (bp < bpList[mid]) r = mid - 1;
+    else if (bp > bpList[mid]) l = mid + 1;
+  }
+
+  if (l >= r) { return; }
+  if (bpList[mid] == bp) {
+    bpList[mid] = 0xFFFF; // Removed breakpoint because in 6502 mem 0xFFFF is irq's vector
+    // Need to take care of this somehow later
+  }
+  return; 
+}
+
+
+
+
+
+
+
+
+
