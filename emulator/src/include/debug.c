@@ -16,6 +16,7 @@
 
 bool progExit = false;
 bool dbgRunning;
+bool currentlyAtBp = false;
 
 // Send a keyhit to UART and cause interrupt
 void sendToUart(uint8_t k) {
@@ -34,9 +35,12 @@ uint8_t readFromUart() {
 
 
 // Controller for the run6502 thread when running in continuous mode
-void runContinuous() {
+int runContinuous() {
   setupTerminal();
+
   runmode = RUNNING;
+  int atBreakpoint = -1;
+
   while (runmode == RUNNING) {
     if (read6502(ixReg) & 0b10000000) { 
       progExit = true; 
@@ -53,26 +57,29 @@ void runContinuous() {
     char line[64]; 
     memset(line, 0, sizeof(line));
     instrlen = disassemble_6502(pc, read6502, line); 
+    if (currentlyAtBp) { step6502(); continue; }
 
     bool brkFound = false;
 
     // Check if a breakpoint lies between the bytes of the current instr
-    // Need to optimize breakpoint search
     for (int i = 0; (i < nBreakpoints) && !brkFound; i ++) {
-      if (bpList[i] >= pc && bpList[i] <= pc + instrlen){
-        printf("  Breakpoint %04hx: %s\n", bpList[i], line);
+      if (bpList[i].address >= pc && bpList[i].address <= pc + instrlen){
+        printf("  Breakpoint!\n");
+        atBreakpoint = i;
         brkFound = true;
       }
     }
 
     if (brkFound) { 
       runmode = STEPPING; 
-      break;}
+      break;
+    }
+
     step6502();
   }
 
   restoreTerminal();
-  return;
+  return atBreakpoint;
 }
 
 
@@ -141,7 +148,7 @@ void runDebugger() {
 
       // Run in continuous mode
       case 'c': {
-        runContinuous();
+        int brkpt = runContinuous();
         runmode = STEPPING;
         printf("  Control returned to debugger\n");
 
@@ -157,6 +164,15 @@ void runDebugger() {
           }
           continue;
         }
+
+        if (brkpt > 0) {
+          char buf[32];
+          memset(buf, 0, sizeof(buf));
+          int l = getLine(buf, sizeof(buf));
+          printf("  Breakpoint [%d] at addr %04hx: %s\n", brkpt, bpList[brkpt].address, buf);
+          currentlyAtBp = true;
+        }
+
       } break;
 
 
@@ -200,8 +216,8 @@ void runDebugger() {
       for (int i = 0; i < nBreakpoints; i ++) {
         char line[64]; 
         memset(line, 0, sizeof(line));
-        int instrlen = disassemble_6502(bpList[i], read6502, line); 
-        printf("%04hx\t%s\n", bpList[i], line);
+        int instrlen = disassemble_6502(bpList[i].address, read6502, line); 
+        printf("%04hx\t%s\n", bpList[i].address, line);
       }
       break;
 
@@ -273,34 +289,35 @@ void runDebugger() {
           instrlen = disassemble_6502(pc, read6502, line); 
           bool brkptFound = false;
 
+          if (currentlyAtBp) { step6502(); currentlyAtBp = false; continue; }
+
           // Check if a breakpoint lies between the bytes of the current instr
           // Need to optimize breakpoint search
           for (int i = 0; i < nBreakpoints && !brkptFound; i ++) {
             // Breakpoint reached, dont step the instr yet
-            if (bpList[i] >= pc && bpList[i] <= pc + instrlen){
-              printf("  Breakpoint %04hx: %s\n", bpList[i], line);
-              brkptFound = true;
-            } else { }
+            if (bpList[i].address >= pc && bpList[i].address <= pc + instrlen){ brkptFound = true; }
+
+            if (brkptFound) { 
+              printf("  Breakpoint [%d] at addr %04hx: %s\n", i, bpList[i].address, line);
+              currentlyAtBp = true;
+              break; 
+            }
+
+            // No breakpoint, current instruction can be stepped
+            printf("\t%s\n", line); 
+            step6502();
+            if (read6502(ixReg) & 0b10000000) { 
+              progExit = true; 
+              printf("  Program exited\n"); 
+              exited_ = true;
+              break;
+            }
+            if (read6502(ixReg) & 0x40) break;
+            if (read6502(ixReg) & 0x01) { putchar(readFromUart()); } 
+
           }
 
-          // Breakpoint found, kill stepping loop
-          if (brkptFound) { break; }
-
-          // No breakpoint, current instruction can be stepped
-          printf("\t%s\n", line); 
-          step6502();
-          if (read6502(ixReg) & 0b10000000) { 
-            progExit = true; 
-            printf("  Program exited\n"); 
-            exited_ = true;
-            break;
-          }
-          if (read6502(ixReg) & 0x40) break;
-          if (read6502(ixReg) & 0x01) { putchar(readFromUart()); } 
-
-        }
-
-      } break;
+        } } break;
 
       // Exit the debugger
       case 'q':

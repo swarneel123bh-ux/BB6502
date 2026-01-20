@@ -43,8 +43,14 @@ int getCharacter();
 // Function to get a whole line
 int getLine(char* linebuf, size_t linebufsiz);
 
+// Breakpoint struct to track bps and if at bp
+typedef struct Breakpoint {
+  uint16_t address;
+  bool atBreakpoint;
+} breakpoint;
+
 // Stores the list of currently active breakpoints
-uint16_t* bpList;
+breakpoint* bpList;
 int bpListSize;
 int nBreakpoints;
 
@@ -54,9 +60,9 @@ void setBreakpoint(uint16_t bp);
 
 // Removes breakpoint by addr
 // Symbol breakpoints need to be converted to address by caller
-void rmBreakpoint(uint8_t bp);
+void rmBreakpoint(uint16_t bp);
 
-
+// Get input from user and parse it
 
 
 
