@@ -24,7 +24,7 @@ uint16_t read_hex_u16(void) {
   }
 
   errno = 0;
-  value = strtoul(buf, &end, 0);  
+  value = strtoul(buf, &end, 0);
 
   if (errno != 0 || end == buf) {
     fprintf(stderr, "Invalid hex number\n");
@@ -68,8 +68,8 @@ static struct termios oldt;
 static int old_stdin_flags;
 
 // Restore the terminal to old mode before exiting program
-void restoreTerminal() { 
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt); 
+void restoreTerminal() {
+  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
   setvbuf(stdout, NULL, _IOLBF, 0);
   fcntl(STDIN_FILENO, F_SETFL, old_stdin_flags);
 }
@@ -84,20 +84,15 @@ void sigintHandler(int signum) {
 // Set up terminal for async function
 void setupTerminal(void) {
   struct termios newt;
-
   tcgetattr(STDIN_FILENO, &oldt);
   newt = oldt;
   newt.c_lflag &= ~(ICANON | ECHO);
   tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
   setvbuf(stdout, NULL, _IONBF, 0);
-
   int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
   old_stdin_flags = flags;
   fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-
   signal(SIGINT, sigintHandler);
-
   return;
 }
 
@@ -120,7 +115,7 @@ int getCharacter() {
 int getLine(char* linebuf, size_t linebufsiz) {
   if (!fgets(linebuf, linebufsiz, stdin)) {
     return 0;
-  } 
+  }
 
   return strlen(linebuf);
 }
@@ -131,8 +126,8 @@ int nBreakpoints = 0;
 // Creates a breakpoint by address in mem
 // Symbol breakpoints need to be taken care of by caller
 void setBreakpoint(uint16_t bp) {
-  if (bpListSize <= 0) { 
-    bpListSize = 10; 
+  if (bpListSize <= 0) {
+    bpListSize = 10;
     bpList = (breakpoint*) malloc(sizeof(breakpoint) * bpListSize);
     memset(bpList, 0xFFFF, sizeof(breakpoint) * bpListSize);
   }
@@ -168,14 +163,27 @@ void rmBreakpoint(uint16_t bp) {
     bpList[mid].address = 0xFFFF; // Removed breakpoint because in 6502 mem 0xFFFF is irq's vector
     // Need to take care of this somehow later
   }
-  return; 
+  return;
 }
 
 
+// Read debug symbols (only when -dsym flag given at entry or user points
+// the debugger to the file internally). Returns the number of bytes read
+int readDbgSyms(char* filepath) {
+	FILE* f = fopen(filepath, "rb");
+	if (!f) {
+		fprintf(stderr, "fopen: Failed to open file %s: ", filepath);
+		perror(" ");
+		return 0;
+	}
 
+	/*
+	int nbytes;
+	char buf[0x10000];
+	while (fread(buf, sizeof(buf), 1, f)){
 
+	} */
 
-
-
-
-
+	fclose(f);
+	return nbytes;
+}

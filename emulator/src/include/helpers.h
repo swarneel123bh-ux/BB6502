@@ -62,12 +62,7 @@ void setBreakpoint(uint16_t bp);
 // Symbol breakpoints need to be converted to address by caller
 void rmBreakpoint(uint16_t bp);
 
-// Get input from user and parse it
 
-
-
-
-
-
-
-
+// Read debug symbols (only when -dsym flag given at entry or user points
+// the debugger to the file internally)
+int readDbgSyms(char* filepath);
