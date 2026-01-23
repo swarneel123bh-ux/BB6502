@@ -1,0 +1,396 @@
+Sections:
+section .text (attr=<acrx> align=1):
+       0: opts: dp=0000 a=8 x=8
+       0: space(8192,fill=00)
+section org0001:2000 (attr=<acrwx> align=1):
+    2000: opts: dp=0000 a=8 x=8
+    2000: symbol: _main EXPR(8192=0x2000) ABS 
+    2000: data(2): a9 11 
+    2002: data(2): 85 00 
+    2004: data(2): a9 20 
+    2006: data(2): 85 01 
+    2008: data(3): 20 46 80 
+    200b: data(3): 4c 26 20 
+    200e: data(3): 4c 24 80 
+    2011: symbol: _main_end EXPR(8209=0x2011) UNUSED ABS 
+    2011: symbol: wozmsg EXPR(8209=0x2011) ABS 
+    2011: data(17): 4a 75 6d 70 69 6e 67 20 74 6f 20 77 6f 7a 6d 6f 6e 
+    2022: data(1): 0d 
+    2023: data(1): 0a 
+    2024: data(1): 00 
+    2025: space(1,fill=00)
+    2026: symbol: _wozmon EXPR(8230=0x2026) ABS 
+    2026: symbol: WZMON EXPR(8230=0x2026) UNUSED ABS 
+    2026: data(2): a0 7f 
+    2028: data(2): a9 a7 
+    202a: symbol: NOTCR EXPR(8234=0x202a) ABS 
+    202a: data(2): c9 5f 
+    202c: data(2): f0 13 
+    202e: data(2): c9 1b 
+    2030: data(2): f0 03 
+    2032: data(1): c8 
+    2033: data(2): 10 0f 
+    2035: symbol: ESCAPE EXPR(8245=0x2035) ABS 
+    2035: data(2): a9 5c 
+    2037: data(3): 20 05 21 
+    203a: symbol: GETLINE EXPR(8250=0x203a) ABS 
+    203a: data(2): a9 0d 
+    203c: data(3): 20 05 21 
+    203f: data(2): a0 01 
+    2041: symbol: BACKSPACE EXPR(8257=0x2041) ABS 
+    2041: data(1): 88 
+    2042: data(2): 30 f6 
+    2044: symbol: NEXTCHAR EXPR(8260=0x2044) ABS 
+    2044: data(3): 20 86 80 
+    2047: data(3): 99 00 02 
+    204a: data(3): 20 05 21 
+    204d: data(2): c9 0d 
+    204f: data(2): d0 d9 
+    2051: data(2): a0 ff 
+    2053: data(2): a9 00 
+    2055: data(1): aa 
+    2056: symbol: SETSTOR EXPR(8278=0x2056) ABS 
+    2056: data(1): 0a 
+    2057: symbol: SETMODE EXPR(8279=0x2057) ABS 
+    2057: data(2): 85 2b 
+    2059: symbol: BLSKIP EXPR(8281=0x2059) ABS 
+    2059: data(1): c8 
+    205a: symbol: NEXTITEM EXPR(8282=0x205a) ABS 
+    205a: data(3): b9 00 02 
+    205d: data(2): c9 0d 
+    205f: data(2): f0 d9 
+    2061: data(2): c9 2e 
+    2063: data(2): 90 f4 
+    2065: data(2): f0 f0 
+    2067: data(2): c9 3a 
+    2069: data(2): f0 eb 
+    206b: data(2): c9 52 
+    206d: data(2): f0 3b 
+    206f: data(2): 86 28 
+    2071: data(2): 86 29 
+    2073: data(2): 84 2a 
+    2075: symbol: NEXTHEX EXPR(8309=0x2075) ABS 
+    2075: data(3): b9 00 02 
+    2078: data(2): 49 b0 
+    207a: data(2): c9 0a 
+    207c: data(2): 90 06 
+    207e: data(2): 69 88 
+    2080: data(2): c9 fa 
+    2082: data(2): 90 11 
+    2084: symbol: DIG EXPR(8324=0x2084) ABS 
+    2084: data(1): 0a 
+    2085: data(1): 0a 
+    2086: data(1): 0a 
+    2087: data(1): 0a 
+    2088: data(2): a2 04 
+    208a: symbol: HEXSHIFT EXPR(8330=0x208a) ABS 
+    208a: data(1): 0a 
+    208b: data(2): 26 28 
+    208d: data(2): 26 29 
+    208f: data(1): ca 
+    2090: data(2): d0 f8 
+    2092: data(1): c8 
+    2093: data(2): d0 e0 
+    2095: symbol: NOTHEX EXPR(8341=0x2095) ABS 
+    2095: data(2): c4 2a 
+    2097: data(2): f0 9c 
+    2099: data(2): 24 2b 
+    209b: data(2): 50 10 
+    209d: data(2): a5 28 
+    209f: data(2): 81 26 
+    20a1: data(2): e6 26 
+    20a3: data(2): d0 b5 
+    20a5: data(2): e6 27 
+    20a7: symbol: TONEXTITEM EXPR(8359=0x20a7) ABS 
+    20a7: data(3): 4c 5a 20 
+    20aa: symbol: RUN EXPR(8362=0x20aa) ABS 
+    20aa: data(3): 6c 24 00 
+    20ad: symbol: NOTSTOR EXPR(8365=0x20ad) ABS 
+    20ad: data(2): 30 2b 
+    20af: data(2): a2 02 
+    20b1: symbol: SETADR EXPR(8369=0x20b1) ABS 
+    20b1: data(2): b5 27 
+    20b3: data(2): 95 25 
+    20b5: data(2): 95 23 
+    20b7: data(1): ca 
+    20b8: data(2): d0 f7 
+    20ba: symbol: NXTPRNT EXPR(8378=0x20ba) ABS 
+    20ba: data(2): d0 14 
+    20bc: data(2): a9 0d 
+    20be: data(3): 20 05 21 
+    20c1: data(2): a5 25 
+    20c3: data(3): 20 f2 20 
+    20c6: data(2): a5 24 
+    20c8: data(3): 20 f2 20 
+    20cb: data(2): a9 3a 
+    20cd: data(3): 20 05 21 
+    20d0: symbol: PRDATA EXPR(8400=0x20d0) ABS 
+    20d0: data(2): a9 a0 
+    20d2: data(3): 20 05 21 
+    20d5: data(2): a1 24 
+    20d7: data(3): 20 f2 20 
+    20da: symbol: XAMNEXT EXPR(8410=0x20da) ABS 
+    20da: data(2): 86 2b 
+    20dc: data(2): a5 24 
+    20de: data(2): c5 28 
+    20e0: data(2): a5 25 
+    20e2: data(2): e5 29 
+    20e4: data(2): b0 c1 
+    20e6: data(2): e6 24 
+    20e8: data(2): d0 02 
+    20ea: data(2): e6 25 
+    20ec: symbol: MOD8CHK EXPR(8428=0x20ec) ABS 
+    20ec: data(2): a5 24 
+    20ee: data(2): 29 07 
+    20f0: data(2): 10 c8 
+    20f2: symbol: PRBYTE EXPR(8434=0x20f2) ABS 
+    20f2: data(1): 48 
+    20f3: data(1): 4a 
+    20f4: data(1): 4a 
+    20f5: data(1): 4a 
+    20f6: data(1): 4a 
+    20f7: data(3): 20 fb 20 
+    20fa: data(1): 68 
+    20fb: symbol: PRHEX EXPR(8443=0x20fb) ABS 
+    20fb: data(2): 29 0f 
+    20fd: data(2): 09 30 
+    20ff: data(2): c9 ba 
+    2101: data(2): 90 02 
+    2103: data(2): 69 06 
+    2105: symbol: ECHO EXPR(8453=0x2105) ABS 
+    2105: data(3): 20 6f 80 
+    2108: data(3): 8d 01 10 
+    210b: data(1): 60 
+    210c: data(1): 00 
+    210d: data(1): 00 
+    210e: symbol: _wozmon_end EXPR(8462=0x210e) UNUSED ABS 
+section org0002:8000 (attr=<acrwx> align=1):
+    8000: opts: dp=0000 a=8 x=8
+    8000: symbol: reset EXPR(32768=0x8000) ABS 
+    8000: data(1): 78 
+    8001: data(1): d8 
+    8002: data(2): a2 ff 
+    8004: data(1): 9a 
+    8005: data(2): a9 a4 
+    8007: data(2): 85 00 
+    8009: data(2): a9 80 
+    800b: data(2): 85 01 
+    800d: data(3): 20 46 80 
+    8010: data(3): 4c 00 20 
+    8013: data(2): a9 b6 
+    8015: data(2): 85 00 
+    8017: data(2): a9 80 
+    8019: data(2): 85 01 
+    801b: data(3): 20 46 80 
+    801e: data(3): 4c 2f 80 
+    8021: data(3): 4c 24 80 
+    8024: symbol: exit EXPR(32804=0x8024) ABS 
+    8024: data(3): ad 03 10 
+    8027: data(2): 09 80 
+    8029: data(3): 8d 03 10 
+    802c: symbol:  exit .wait EXPR(32812=0x802c) ABS 
+    802c: data(3): 4c 2c 80 
+    802f: symbol: hang EXPR(32815=0x802f) ABS 
+    802f: data(2): a9 d0 
+    8031: data(2): 85 00 
+    8033: data(2): a9 80 
+    8035: data(2): 85 01 
+    8037: data(3): 20 46 80 
+    803a: symbol: hang_ EXPR(32826=0x803a) ABS 
+    803a: data(3): 4c 3a 80 
+    803d: symbol: retctrl EXPR(32829=0x803d) UNUSED ABS 
+    803d: data(3): ad 03 10 
+    8040: data(2): 09 40 
+    8042: data(3): 8d 03 10 
+    8045: data(1): 60 
+    8046: symbol: puts EXPR(32838=0x8046) ABS 
+    8046: data(2): a0 00 
+    8048: symbol:  puts .loop EXPR(32840=0x8048) ABS 
+    8048: data(2): b1 00 
+    804a: data(2): f0 07 
+    804c: data(3): 20 6f 80 
+    804f: data(1): c8 
+    8050: data(3): 4c 48 80 
+    8053: symbol:  puts .done EXPR(32851=0x8053) ABS 
+    8053: data(1): 60 
+    8054: symbol: gets EXPR(32852=0x8054) UNUSED ABS 
+    8054: data(2): a0 00 
+    8056: symbol:  gets .loop EXPR(32854=0x8056) ABS 
+    8056: data(3): 20 86 80 
+    8059: data(3): 20 6f 80 
+    805c: data(2): c9 0a 
+    805e: data(2): f0 09 
+    8060: data(2): 91 00 
+    8062: data(1): c8 
+    8063: data(2): f0 03 
+    8065: data(3): 4c 56 80 
+    8068: symbol:  gets .loopback EXPR(32872=0x8068) ABS 
+    8068: data(1): 88 
+    8069: symbol:  gets .done EXPR(32873=0x8069) ABS 
+    8069: data(2): a9 00 
+    806b: data(2): 91 00 
+    806d: data(1): 98 
+    806e: data(1): 60 
+    806f: symbol: putc EXPR(32879=0x806f) ABS 
+    806f: data(1): 48 
+    8070: symbol:  putc .wait EXPR(32880=0x8070) ABS 
+    8070: data(3): ad 03 10 
+    8073: data(2): 29 01 
+    8075: data(2): d0 f9 
+    8077: data(1): 68 
+    8078: data(3): 8d 01 10 
+    807b: data(1): 48 
+    807c: data(3): ad 03 10 
+    807f: data(2): 09 01 
+    8081: data(3): 8d 03 10 
+    8084: data(1): 68 
+    8085: data(1): 60 
+    8086: symbol: getc EXPR(32902=0x8086) ABS 
+    8086: data(3): ad 03 10 
+    8089: data(2): 09 04 
+    808b: data(3): 8d 03 10 
+    808e: symbol:  getc .wait EXPR(32910=0x808e) ABS 
+    808e: data(3): ad 03 10 
+    8091: data(2): 29 02 
+    8093: data(2): f0 f9 
+    8095: data(3): ad 02 10 
+    8098: data(1): 48 
+    8099: data(3): ad 03 10 
+    809c: data(2): 29 f9 
+    809e: data(3): 8d 03 10 
+    80a1: data(1): 68 
+    80a2: data(1): 58 
+    80a3: data(1): 60 
+    80a4: symbol: msg_bios EXPR(32932=0x80a4) ABS 
+    80a4: data(15): 48 65 6c 6c 6f 20 66 72 6f 6d 20 42 49 4f 53 
+    80b3: data(1): 0d 
+    80b4: data(1): 0a 
+    80b5: space(1,fill=00)
+    80b6: symbol: msg_nomain EXPR(32950=0x80b6) ABS 
+    80b6: data(23): 4e 6f 20 5f 6d 61 69 6e 20 66 6f 75 6e 64 2c 20 65 78 69 74 69 6e 67 
+    80cd: data(1): 0d 
+    80ce: data(1): 0a 
+    80cf: space(1,fill=00)
+    80d0: symbol: msg_exit_fail EXPR(32976=0x80d0) ABS 
+    80d0: data(26): 46 61 69 6c 65 64 20 74 6f 20 65 78 69 74 2c 20 68 61 6e 67 69 6e 67 2e 2e 2e 
+    80ea: data(1): 0d 
+    80eb: data(1): 0a 
+    80ec: space(1,fill=00)
+    80ed: symbol: nmi EXPR(33005=0x80ed) ABS 
+    80ed: data(1): 40 
+    80ee: symbol: irq EXPR(33006=0x80ee) ABS 
+    80ee: data(1): 48 
+    80ef: data(1): 8a 
+    80f0: data(1): 48 
+    80f1: data(1): 98 
+    80f2: data(1): 48 
+    80f3: data(3): ad 00 10 
+    80f6: data(3): 8d 02 10 
+    80f9: data(3): ad 03 10 
+    80fc: data(2): 09 02 
+    80fe: data(3): 8d 03 10 
+    8101: data(1): 68 
+    8102: data(1): a8 
+    8103: data(1): 68 
+    8104: data(1): aa 
+    8105: data(1): 68 
+    8106: data(1): 40 
+section org0003:ffea (attr=<acrwx> align=1):
+    ffea: opts: dp=0000 a=8 x=8
+    ffea: symbol: uart_inreg_addr EXPR(65514=0xffea) UNUSED ABS 
+    ffea: data(2): 00 10 
+    ffec: symbol: uart_outreg_addr EXPR(65516=0xffec) UNUSED ABS 
+    ffec: data(2): 01 10 
+    ffee: symbol: ixflagreg_addr EXPR(65518=0xffee) UNUSED ABS 
+    ffee: data(2): 03 10 
+section org0004:fffa (attr=<acrwx> align=1):
+    fffa: opts: dp=0000 a=8 x=8
+    fffa: symbol: nmiv EXPR(65530=0xfffa) UNUSED ABS 
+    fffa: data(2): ed 80 
+    fffc: symbol: resetv EXPR(65532=0xfffc) UNUSED ABS 
+    fffc: data(2): 00 80 
+    fffe: symbol: irqv EXPR(65534=0xfffe) UNUSED ABS 
+    fffe: data(2): ee 80 
+Symbols:
+irqv EXPR(65534=0xfffe) UNUSED ABS 
+resetv EXPR(65532=0xfffc) UNUSED ABS 
+nmiv EXPR(65530=0xfffa) UNUSED ABS 
+ixflagreg_addr EXPR(65518=0xffee) UNUSED ABS 
+uart_outreg_addr EXPR(65516=0xffec) UNUSED ABS 
+uart_inreg_addr EXPR(65514=0xffea) UNUSED ABS 
+irq EXPR(33006=0x80ee) ABS 
+nmi EXPR(33005=0x80ed) ABS 
+ getc .wait EXPR(32910=0x808e) ABS 
+ putc .wait EXPR(32880=0x8070) ABS 
+ gets .loopback EXPR(32872=0x8068) ABS 
+ gets .done EXPR(32873=0x8069) ABS 
+ gets .loop EXPR(32854=0x8056) ABS 
+gets EXPR(32852=0x8054) UNUSED ABS 
+ puts .done EXPR(32851=0x8053) ABS 
+ puts .loop EXPR(32840=0x8048) ABS 
+retctrl EXPR(32829=0x803d) UNUSED ABS 
+hang_ EXPR(32826=0x803a) ABS 
+msg_exit_fail EXPR(32976=0x80d0) ABS 
+ exit .wait EXPR(32812=0x802c) ABS 
+hang EXPR(32815=0x802f) ABS 
+msg_nomain EXPR(32950=0x80b6) ABS 
+msg_bios EXPR(32932=0x80a4) ABS 
+reset EXPR(32768=0x8000) ABS 
+_wozmon_end EXPR(8462=0x210e) UNUSED ABS 
+putc EXPR(32879=0x806f) ABS 
+PRHEX EXPR(8443=0x20fb) ABS 
+MOD8CHK EXPR(8428=0x20ec) ABS 
+PRBYTE EXPR(8434=0x20f2) ABS 
+PRDATA EXPR(8400=0x20d0) ABS 
+NXTPRNT EXPR(8378=0x20ba) ABS 
+SETADR EXPR(8369=0x20b1) ABS 
+XAMNEXT EXPR(8410=0x20da) ABS 
+TONEXTITEM EXPR(8359=0x20a7) ABS 
+NOTSTOR EXPR(8365=0x20ad) ABS 
+HEXSHIFT EXPR(8330=0x208a) ABS 
+NOTHEX EXPR(8341=0x2095) ABS 
+DIG EXPR(8324=0x2084) ABS 
+NEXTHEX EXPR(8309=0x2075) ABS 
+RUN EXPR(8362=0x20aa) ABS 
+NEXTITEM EXPR(8282=0x205a) ABS 
+BLSKIP EXPR(8281=0x2059) ABS 
+SETMODE EXPR(8279=0x2057) ABS 
+SETSTOR EXPR(8278=0x2056) ABS 
+getc EXPR(32902=0x8086) ABS 
+GETLINE EXPR(8250=0x203a) ABS 
+ECHO EXPR(8453=0x2105) ABS 
+NEXTCHAR EXPR(8260=0x2044) ABS 
+ESCAPE EXPR(8245=0x2035) ABS 
+BACKSPACE EXPR(8257=0x2041) ABS 
+NOTCR EXPR(8234=0x202a) ABS 
+WZMON EXPR(8230=0x2026) UNUSED ABS 
+_main_end EXPR(8209=0x2011) UNUSED ABS 
+exit EXPR(32804=0x8024) ABS 
+_wozmon EXPR(8230=0x2026) ABS 
+puts EXPR(32838=0x8046) ABS 
+wozmsg EXPR(8209=0x2011) ABS 
+_main EXPR(8192=0x2000) ABS 
+DSPCR EXPR(53267=0xd013) UNUSED EQU 
+DSP EXPR(53266=0xd012) UNUSED EQU 
+KBDCR EXPR(53265=0xd011) UNUSED EQU 
+KBD EXPR(53264=0xd010) UNUSED EQU 
+IN EXPR(512=0x200) EQU 
+MODE EXPR(43=0x2b) EQU 
+YSAV EXPR(42=0x2a) EQU 
+H EXPR(41=0x29) EQU 
+L EXPR(40=0x28) EQU 
+STH EXPR(39=0x27) EQU 
+STL EXPR(38=0x26) EQU 
+XAMH EXPR(37=0x25) EQU 
+XAML EXPR(36=0x24) EQU 
+IPBUF EXPR(4352=0x1100) UNUSED EQU 
+IPWPTR EXPR(4101=0x1005) UNUSED EQU 
+IPRPTR EXPR(4100=0x1004) UNUSED EQU 
+IXFLAGREG EXPR(4099=0x1003) EQU 
+UARTSHADOW EXPR(4098=0x1002) EQU 
+UARTOUTREG EXPR(4097=0x1001) EQU 
+UARTINREG EXPR(4096=0x1000) EQU 
+STRPTR EXPR(0=0) EQU 
+__RPTCNT EXPR(-1=0xffffffff) INTERNAL 
+__VASM EXPR(0=0) INTERNAL 
+__UNIXFS EXPR(0=0) INTERNAL 

@@ -83,7 +83,7 @@ retctrl:
 ; desc: prints null terminated string by sending character data to uart
 ; ------
 puts:
-  ldy #$00 
+  ldy #$00
 
 .loop:
   lda (STRPTR),y
@@ -96,13 +96,13 @@ puts:
   rts
 
 ; ------
-; subroutine gets: 
-; params: 
+; subroutine gets:
+; params:
 ;   STRPTR: (2 bytes) address to the buffer to store the string to in little endian format
 ;           For now the subroutine is limited to max $ff bytes (256) but we will modify it later
 ; modifies:
 ;   A register: stores the length of string taken
-; desc: the irq handler writes (n) bytes to IPBUF, we wait till (n) bytes have been written, not 
+; desc: the irq handler writes (n) bytes to IPBUF, we wait till (n) bytes have been written, not
 ; including carriage return and line feed. The subroutine WILL add a 0 to the buffer end though
 ; ------
 gets:
@@ -143,10 +143,10 @@ putc:
   lda IXFLAGREG
   and #%00000001
   bne .wait
-  
+
   ; Store and set b0
   pla
-  sta UARTOUTREG 
+  sta UARTOUTREG
 
   pha
   lda IXFLAGREG
@@ -180,7 +180,7 @@ getc:
   lda IXFLAGREG
   and #%11111001
   sta IXFLAGREG
-  
+
   ; Restore the character read, renable interrupts and exit
   pla
   cli
@@ -192,7 +192,7 @@ getc:
 ; ------
 msg_bios:       .asciiz "Hello from BIOS", $0d, $0a
 msg_nomain:     .asciiz "No _main found, exiting", $0d, $0a
-msg_exit_fail:  .asciiz "Xailed to exit, hanging...", $0d, $0a
+msg_exit_fail:  .asciiz "Failed to exit, hanging...", $0d, $0a
 
 
 ; ------
@@ -211,7 +211,7 @@ irq:
   pha
   txa
   pha
-  tya 
+  tya
   pha
 
   lda UARTINREG
@@ -219,7 +219,7 @@ irq:
   lda IXFLAGREG
   ora #%00000010  ; Indicate that UARTSHADOW has new bit
   sta IXFLAGREG
- 
+
   pla
   tay
   pla
@@ -235,7 +235,7 @@ irq:
   .org $ffea
 uart_inreg_addr:
   .word UARTINREG  ; $ffea - $ffeb
-uart_outreg_addr: 
+uart_outreg_addr:
   .word UARTOUTREG ; $ffec - $ffed
 ixflagreg_addr:
   .word IXFLAGREG   ; $ffee - $ffef
@@ -250,6 +250,3 @@ resetv:
   .word reset       ; $fffc - $fffd
 irqv:
   .word irq         ; $fffe - $ffff
-
-
-

@@ -9,9 +9,9 @@ _main:
   ; Step from _main
   ; jsr retctrl
   ; Get character input
-  jsr get_c
+  jsr getc
   ; Print what was received
-  jsr put_c
+  jsr putc
   ; Exit
   jmp exit
 _main_end:
