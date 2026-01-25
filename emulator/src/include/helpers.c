@@ -10,7 +10,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <pthread.h>
 
 // Reads a hex value from the user and returns it as a uint16_t type
 uint16_t read_hex_u16(void) {

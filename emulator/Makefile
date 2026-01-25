@@ -1,21 +1,166 @@
-CC=gcc
-DBG=lldb
+# ==================================================
+# Toolchain
+# ==================================================
 
-.PHONY: all dbg test clean run
+CC      := gcc
+LLDB    := lldb
+VASM    := tests/vasm
 
-all: bin dbg
 
-bin:
-	$(CC) src/main.c src/include/debug.c src/include/helpers.c src/include/fake6502.c src/include/disasm.c -lpthread -o build/debug6502
+# ==================================================
+# Directories
+# ==================================================
 
-dbg:
-	$(CC) src/main.c src/include/debug.c src/include/helpers.c src/include/fake6502.c src/include/disasm.c -lpthread -o build/debug6502dbg -g3
+# Emulator
+SRC_DIR := src
+INC_DIR := src/include
+BUILD   := build
+OBJ_DIR := $(BUILD)/obj
+BIN_DIR := $(BUILD)/bin
 
-run: bin
-	build/debug6502 tests/build/uart_test.out
+# Tests
+TEST_DIR      := tests
+TEST_SRC_DIR  := $(TEST_DIR)/asmsrc
+TEST_BUILD    := $(TEST_DIR)/build
 
-test: dbg
-	lldb build/debug6502dbg
+
+# ==================================================
+# Targets
+# ==================================================
+
+TARGET      := $(BIN_DIR)/debug6502
+TARGET_DBG  := $(BIN_DIR)/debug6502dbg
+
+
+# ==================================================
+# Sources
+# ==================================================
+
+SRCS := \
+	$(SRC_DIR)/main.c \
+	$(INC_DIR)/debug.c \
+	$(INC_DIR)/helpers.c \
+	$(INC_DIR)/fake6502.c \
+	$(INC_DIR)/disasm.c
+
+OBJS := $(SRCS:%.c=$(OBJ_DIR)/%.o)
+
+
+# Test sources
+ASM_SRCS := $(wildcard $(TEST_SRC_DIR)/*.s)
+
+TEST_BINS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.out,$(ASM_SRCS))
+TEST_SYMS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.sym,$(ASM_SRCS))
+TEST_VOBJ := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.vobj,$(ASM_SRCS))
+
+
+# ==================================================
+# Flags
+# ==================================================
+
+CFLAGS   := -O2 -I$(INC_DIR)
+DBGFLAGS := -g3 -O0
+LDFLAGS  := -lpthread
+
+
+VASM_ASM_FLAGS  := -Fbin  -dotdir -I$(TEST_SRC_DIR)/utils
+VASM_SYM_FLAGS  := -dotdir -I$(TEST_SRC_DIR)/utils
+VASM_VOBJ_FLAGS := -Fvobj -dotdir -I$(TEST_SRC_DIR)/utils
+
+
+# ==================================================
+# Phony Targets
+# ==================================================
+
+.PHONY: all release debug clean dirs tests test run_test run_debug
+
+
+# ==================================================
+# Default
+# ==================================================
+
+all: release
+
+
+# ==================================================
+# Directory Setup
+# ==================================================
+
+dirs:
+	mkdir -p $(OBJ_DIR)/$(SRC_DIR)
+	mkdir -p $(OBJ_DIR)/$(INC_DIR)
+	mkdir -p $(BIN_DIR)
+	mkdir -p $(TEST_BUILD)
+
+
+# ==================================================
+# Emulator Build
+# ==================================================
+
+release: CFLAGS += -DNDEBUG
+release: dirs $(TARGET)
+
+
+debug: CFLAGS += $(DBGFLAGS)
+debug: dirs $(TARGET_DBG)
+
+
+$(TARGET): $(OBJS)
+	$(CC) $^ $(LDFLAGS) -o $@
+
+
+$(TARGET_DBG): $(OBJS)
+	$(CC) $^ $(LDFLAGS) -o $@
+
+
+$(OBJ_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+
+# ==================================================
+# Test Build (VASM)
+# ==================================================
+
+# Build all asm outputs
+tests: tests-bin tests-sym tests-vobj
+
+
+# User-facing test command
+test: tests
+
+
+tests-bin:  $(TEST_BINS)
+tests-sym:  $(TEST_SYMS)
+tests-vobj: $(TEST_VOBJ)
+
+
+$(TEST_BUILD)/%.out: $(TEST_SRC_DIR)/%.s | dirs
+	$(VASM) $(VASM_ASM_FLAGS) -o $@ $<
+
+
+$(TEST_BUILD)/%.sym: $(TEST_SRC_DIR)/%.s | dirs
+	$(VASM) $(VASM_SYM_FLAGS) -Llo -o $@ $<
+
+
+$(TEST_BUILD)/%.vobj: $(TEST_SRC_DIR)/%.s | dirs
+	$(VASM) $(VASM_VOBJ_FLAGS) -o $@ $<
+
+
+# ==================================================
+# Run
+# ==================================================
+
+run_test: release test
+	$(TARGET) $(TEST_BUILD)/uart_test.out
+
+run_debug: debug test
+	$(LLDB) -- $(TARGET_DBG) $(TEST_BUILD)/uart_test.out
+
+
+# ==================================================
+# Clean
+# ==================================================
 
 clean:
-	rm -rf build/*
+	rm -rf $(BUILD)
+	rm -rf $(TEST_BUILD)
