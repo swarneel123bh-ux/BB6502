@@ -177,13 +177,15 @@ int readDbgSyms(char* filepath) {
 		return 0;
 	}
 
-	/*
-	int nbytes;
-	char buf[0x10000];
-	while (fread(buf, sizeof(buf), 1, f)){
-
-	} */
-
+	int linesRead = 0;
+	char buf[256];
+  while (fgets(buf, sizeof(buf), f)) {
+    // parseDbgSymLine();
+    linesRead ++;
+  }
+  printf("Read %d lines\n", linesRead);
+  fclose(f);
 	fclose(f);
-	return nbytes;
+
+	return linesRead;
 }
