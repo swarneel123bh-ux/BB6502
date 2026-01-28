@@ -167,13 +167,12 @@ void rmBreakpoint(uint16_t bp) {
 
 
 // Read debug symbols (only when -dsym flag given at entry or user points
-// the debugger to the file internally). Returns the number of bytes read
-int readDbgSyms(char* filepath) {
-	FILE* f = fopen(filepath, "rb");
+// the debugger to the file internally). Parses the symbols and writes
+// to a global symbol table. Returns the number of bytes read.
+int readDbgSyms(FILE* f) {
 	if (!f) {
-		fprintf(stderr, "fopen: Failed to open file %s: ", filepath);
-		perror(" ");
-		return 0;
+		perror("fopen: ");
+		return -1;
 	}
 
 	int linesRead = 0;

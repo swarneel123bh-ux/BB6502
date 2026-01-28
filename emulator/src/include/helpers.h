@@ -65,4 +65,4 @@ void rmBreakpoint(uint16_t bp);
 
 // Read debug symbols (only when -dsym flag given at entry or user points
 // the debugger to the file internally)
-int readDbgSyms(char* filepath);
+int readDbgSyms(FILE* file);

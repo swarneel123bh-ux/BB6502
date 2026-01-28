@@ -123,12 +123,11 @@ void runDebugger() {
 
     char* tok = strtok(buf, " \t\n");
     if (!tok) {
-      fprintf(stderr, "strtok: cmd parsing failure!\n");
-      exit(1);
+      fprintf(stderr, "Invalid command\n");
+      continue;
     }
+
     int c = tok[0];
-
-
     switch(c) {
       // Add breakpoint
       case 'b': {
