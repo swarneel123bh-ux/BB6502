@@ -20,16 +20,6 @@ uint16_t uartInReg;   // Address of the UART Input Register
 uint16_t uartOutReg;  // Address of the UART Output Register
 uint16_t ixReg;       // Address of the Interface Status Register
 
-
-// The flag for running the emulator thread
-// We need this to be global so that the sigintHandler function can access it 
-// when it detects a ctrl-c signal during exec
-int runmode;
-bool takeNextStep;
-
-#define STEPPING 0
-#define RUNNING 1
-
 // Function to trigger an interrupt because of a keypress
 // Sends a byte to uart and calls irq
 // The emulator will respond to a get_c request when b3 of ixReg is set, the irq must clear the bit
