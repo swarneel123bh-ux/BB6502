@@ -2,13 +2,12 @@
 #include "fake6502.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <limits.h>
 #include <unistd.h>
 
 uint16_t read_hex_u16(void) {
@@ -17,7 +16,7 @@ uint16_t read_hex_u16(void) {
   unsigned long value;
 
   if (!fgets(buf, sizeof(buf), stdin)) {
-    fprintf(stderr, "Input error\n");
+    DISPLAY_CONSOLE_ECHO("Input error\n");
     exit(EXIT_FAILURE);
   }
 
@@ -25,12 +24,12 @@ uint16_t read_hex_u16(void) {
   value = strtoul(buf, &end, 0);
 
   if (errno != 0 || end == buf) {
-    fprintf(stderr, "Invalid hex number\n");
+    DISPLAY_CONSOLE_ECHO("Invalid hex number\n");
     exit(EXIT_FAILURE);
   }
 
   if (value > 0xFFFF) {
-    fprintf(stderr, "Value out of 16-bit range\n");
+    DISPLAY_CONSOLE_ECHO("Value out of 16-bit range\n");
     exit(EXIT_FAILURE);
   }
 
@@ -41,15 +40,15 @@ void showmem(uint16_t startaddr, uint16_t endaddr) {
   uint16_t addr = startaddr;
 
   while (1) {
-    printf("%04X: ", addr);
+    DISPLAY_CONSOLE_ECHO("%04X: ", addr);
 
     for (uint16_t offset = 0; offset < 16; offset++) {
       uint16_t cur = addr + offset;
       if (cur < addr || cur > endaddr)
         break;
-      printf("%02X ", read6502(cur));
+      DISPLAY_CONSOLE_ECHO("%02X ", read6502(cur));
     }
-    printf("\n");
+    DISPLAY_CONSOLE_ECHO("\n");
 
     if (addr > endaddr - 16)
       break;
@@ -57,61 +56,12 @@ void showmem(uint16_t startaddr, uint16_t endaddr) {
   }
 }
 
-int getKeyAsync() {
-  unsigned char c;
-  if (read(STDIN_FILENO, &c, 1) == 1) {
-    return c;
-  }
-  return -1;
-}
-
-static struct termios oldt;
-static int old_stdin_flags;
-
-void restoreTerminal() {
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-  setvbuf(stdout, NULL, _IOLBF, 0);
-  fcntl(STDIN_FILENO, F_SETFL, old_stdin_flags);
-}
-
-void sigintHandler(int signum) {
+void sigintHandlerTerminal(int signum) {
   signal(SIGINT, SIG_DFL); // Reset the sigint to quit
 }
 
-void setupTerminal(void) {
-  struct termios newt;
-  tcgetattr(STDIN_FILENO, &oldt);
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  setvbuf(stdout, NULL, _IONBF, 0);
-  int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-  old_stdin_flags = flags;
-  fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-  signal(SIGINT, sigintHandler);
-  return;
-}
-
-// Function to get character sync-ly without messing up the stdin buffer
-int getCharacter() {
-  char buf[32];
-  memset(buf, 0, sizeof(buf));
-  if (!fgets(buf, sizeof(buf), stdin)) {
-    fprintf(stdin, "Input buffering failure, crashing...\n");
-    exit(1);
-  }
-  int c = buf[0];
-  return c;
-}
-
-// Function to get a line
-// Returns the size of the line read
-int getLine(char *linebuf, size_t linebufsiz) {
-  if (!fgets(linebuf, linebufsiz, stdin)) {
-    return 0;
-  }
-
-  return strlen(linebuf);
+void sigintHandlerConsole(int signum) {
+  endwin();
 }
 
 int bpListSize = 0;
@@ -132,7 +82,7 @@ void setBreakpoint(uint16_t addr) {
     bpListSize *= 2;
     breakpoint *tmp = realloc(bpList, bpListSize * sizeof(breakpoint));
     if (!tmp) {
-      fprintf(stderr, "setBreakpoint [fatal]: realloc:");
+      DISPLAY_CONSOLE_ECHO("setBreakpoint [fatal]: realloc:");
       perror(" ");
       exit(1);
     }
@@ -186,8 +136,7 @@ int readDbgSyms(FILE *f) {
     // parseDbgSymLine();
     linesRead++;
   }
-  printf("Read %d lines\n", linesRead);
-  fclose(f);
+  DISPLAY_CONSOLE_ECHO("Read %d lines\n", linesRead);
   fclose(f);
 
   return linesRead;
@@ -291,21 +240,21 @@ CommandType parseCommand(const char *cmd) {
   if (!strcmp(cmd, "registers"))
     return CMD_REGISTERS;
 
-  if (!strcmp(cmd, "rb")) 
+  if (!strcmp(cmd, "rb"))
     return CMD_REMOVEBP;
-  if (!strcmp(cmd, "rbp")) 
+  if (!strcmp(cmd, "rbp"))
     return CMD_REMOVEBP;
-  if (!strcmp(cmd, "rmb")) 
+  if (!strcmp(cmd, "rmb"))
     return CMD_REMOVEBP;
-  if (!strcmp(cmd, "rmbp")) 
+  if (!strcmp(cmd, "rmbp"))
     return CMD_REMOVEBP;
-  if (!strcmp(cmd, "remb")) 
+  if (!strcmp(cmd, "remb"))
     return CMD_REMOVEBP;
-  if (!strcmp(cmd, "rembp")) 
+  if (!strcmp(cmd, "rembp"))
     return CMD_REMOVEBP;
-  if (!strcmp(cmd, "remove")) 
+  if (!strcmp(cmd, "remove"))
     return CMD_REMOVEBP;
-  if (!strcmp(cmd, "removebp")) 
+  if (!strcmp(cmd, "removebp"))
     return CMD_REMOVEBP;
 
   if (!strcmp(cmd, "s"))

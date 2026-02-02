@@ -1,5 +1,6 @@
 #include "include/helpers.h"
 #include "include/shared.h"
+#include "include/display.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

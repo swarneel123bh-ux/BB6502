@@ -32,10 +32,7 @@ TARGET_DBG  := $(BIN_DIR)/debug6502dbg
 # C sources
 SRCS := \
 	$(SRC_DIR)/main.c \
-	$(INC_DIR)/debug.c \
-	$(INC_DIR)/helpers.c \
-	$(INC_DIR)/fake6502.c \
-	$(INC_DIR)/disasm.c
+	$(wildcard $(INC_DIR)/*.c)
 
 OBJS := $(SRCS:%.c=$(OBJ_DIR)/%.o)
 
@@ -52,7 +49,7 @@ TEST_VOBJ := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.vobj,$(ASM_SRCS))
 # gcc flags
 CFLAGS   := -O2 -I$(INC_DIR)
 DBGFLAGS := -g3 -O0
-LDFLAGS  := -lpthread
+LDFLAGS  := -lpthread -lncurses
 # vasm flags
 VASM_ASM_FLAGS  := -Fbin  -dotdir -I$(TEST_SRC_DIR)/utils
 VASM_SYM_FLAGS  := -dotdir -I$(TEST_SRC_DIR)/utils
@@ -153,3 +150,5 @@ debug:
 clean:
 	rm -rf $(BUILD)
 	rm -rf $(TEST_BUILD)
+	rm test
+	rm debug

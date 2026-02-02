@@ -1,5 +1,6 @@
 #pragma once
 
+#include "display.h"
 #include "fake6502.h"
 #include "shared.h"
 #include <errno.h>
@@ -40,10 +41,11 @@ typedef enum {
 
 // Enum to represent all possible signals
 typedef enum {
-  SIG_NOSIG,
-  SIG_PROGRAM_EXITED,
-  SIG_CONTROL_RETURNED,
-  SIG_OUTPUT_REQUEST
+  SIG_NOSIG,            // No signal from 6502 received
+  SIG_PROGRAM_EXITED,   // 6502 sent program exit signal
+  SIG_CONTROL_RETURNED, // 6502 sent request to start stepping again
+  SIG_TEXTOUT,          // 6502 sent request to output text to emulator console
+  SIG_VGAOUT            // 6502 sent request to output text to own terminal
 } SignalType;
 
 // Reads a hex value from the user and returns it as a uint16_t type
@@ -68,7 +70,9 @@ void restoreTerminal();
 // Dropack handler
 // For C23 standard we need to define the fucntion such that it takes 1 integer
 // arg We arent using this anywhere yet
-void sigintHandler(int signum);
+void sigintHandlerTerminal(int signum);
+void sigintHandlerConsole(int signum);
+
 
 // Function to get character sync-ly without messing up the stdin buffer
 int getCharacter();
@@ -108,3 +112,4 @@ int getCmdTokens(char *cmdString, char *tokenArray[], size_t tokenArraySize);
 // Parses command string, returns a CommandType to be used inside a switch
 // statement
 CommandType parseCommand(const char *cmd);
+

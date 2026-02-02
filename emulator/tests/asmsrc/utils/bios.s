@@ -133,9 +133,14 @@ gets:
 ; subroutine putc:
 ; params:
 ;   A: byte to send to uart
+;   X: output mode:-
+;       #00: Text mode
+;       #01: VGA mode (terminal buffer shall be populated)
 ; Communicates with the uart and the emulator via registers
 ; ------
 putc:
+  pha
+  txa
   pha
 
   ; Wait while b0 is set
@@ -145,6 +150,14 @@ putc:
   bne .wait
 
   ; Store and set b0
+  pla
+  tax
+  beq .textmode
+  lda IXFLAGREG
+  ora #%00100000  ; Set terminal vga output
+  sta IXFLAGREG
+
+.textmode:
   pla
   sta UARTOUTREG
 

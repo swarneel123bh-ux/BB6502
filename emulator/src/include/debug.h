@@ -3,12 +3,19 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
+#include "helpers.h"
+#include "display.h"
 
 // Global vars
 bool dbgRunning;
 bool currentlyAtBp;
 char buf[100];
+
+// Initializes 6502 terminal with ncurses and creates terminal window
+// oid initTerminal();
+
+// Creates debugger window with ncurses
+// void initDbg();
 
 // Send a keyhit to UART and cause interrupt
 void sendToUart(uint8_t k);
@@ -52,4 +59,8 @@ void performStep(char *cmdtoks[], size_t cmdtoksize);
 // Perform all interfacing checks and returns the signal for the action performed
 int performChecks();
 
+// Check if current pc is a breakpoint
 bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int* bpnum);
+
+// Print to 6502 terminal
+//void putcharVGA(char c, window_t terminal);
