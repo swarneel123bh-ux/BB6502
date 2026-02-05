@@ -8,14 +8,24 @@
 
 // Global vars
 bool dbgRunning;
+bool insideTerminal;
 bool currentlyAtBp;
 char buf[100];
+int signal_;          // Global signal tracker
 
 // Initializes 6502 terminal with ncurses and creates terminal window
 // oid initTerminal();
 
 // Creates debugger window with ncurses
-// void initDbg();
+void initDbg();
+
+// Deallocates any data and ensures a clean exit
+void cleanUpDbg();
+
+// Basically reinitializes the debugger without intializing ncurses
+// Breakpoints remain
+// processor is resetted
+void resetDbg();
 
 // Send a keyhit to UART and cause interrupt
 void sendToUart(uint8_t k);
@@ -24,7 +34,7 @@ void sendToUart(uint8_t k);
 uint8_t readFromUart();
 
 // Run the 6502 instructions asynchronously
-int runContinuous(int* signal);
+int runContinuous();
 
 // Run the debugger
 void runDebugger();
@@ -64,3 +74,8 @@ bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int* bpnum);
 
 // Print to 6502 terminal
 //void putcharVGA(char c, window_t terminal);
+
+// Handle Ctrl+C signal when inside console/terminal
+void sigintHandlerTerminal(int signum);
+void sigintHandlerConsole(int signum);
+

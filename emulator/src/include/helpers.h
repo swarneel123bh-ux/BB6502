@@ -26,27 +26,45 @@
 
 // Enum to represent all possible commands
 typedef enum {
-  CMD_INVALIDCMD,
-  CMD_REMOVEBP,
-  CMD_BREAKPOINT,
-  CMD_CONTINUE,
-  CMD_DISASSEMBLE,
-  CMD_HELP,
-  CMD_LISTBREAKPOINTS,
-  CMD_MEMORY,
-  CMD_REGISTERS,
-  CMD_STEP,
-  CMD_QUIT
+  CMD_INVALIDCMD,      // Not a real command
+  CMD_REMOVEBP,        // Remove a breakpoint
+  CMD_BREAKPOINT,      // Add a new breakpoint
+  CMD_CONTINUE,        // Continue execution of assembly from current PC
+  CMD_DISASSEMBLE,     // Disassemble routine
+  CMD_HELP,            // Display the help strings
+  CMD_LISTBREAKPOINTS, // List all breakpoints currently set
+  CMD_MEMORY,          // Display the 6502 memory within a given range
+  CMD_REGISTERS,       // Display the 6502 register contents
+  CMD_STEP,            // Step the 6502 a given number of steps
+  CMD_QUIT,            // Quit the debugger
+  CMD_LOADSRC,         // Load the 6502 assembly src from a given file
+  CMD_LOADSYMS // Load the 6502 assembly's debug symbols from a given file
 } CommandType;
 
 // Enum to represent all possible signals
 typedef enum {
-  SIG_NOSIG,            // No signal from 6502 received
-  SIG_PROGRAM_EXITED,   // 6502 sent program exit signal
-  SIG_CONTROL_RETURNED, // 6502 sent request to start stepping again
-  SIG_TEXTOUT,          // 6502 sent request to output text to emulator console
-  SIG_VGAOUT            // 6502 sent request to output text to own terminal
+  SIG_NOSIG,             // No signal from 6502 received
+  SIG_PROGRAM_EXITED,    // 6502 sent program exit signal
+  SIG_CONTROL_RETURNED,  // 6502 sent request to start stepping again
+  SIG_TEXTOUT,           // 6502 sent request to output text to emulator console
+  SIG_VGAOUT,            // 6502 sent request to output text to own terminal
+  SIG_INTERRUPT_TERMINAL // Ctrl+C signal sent while inside terminal
 } SignalType;
+
+// Cmd line arg options
+// binfilename[required] :
+//  Path to the raw binary file
+// srcfilename:
+//  Path to the source code file for the currently executing binary
+//  Default: NULL
+// dbgsymfilename:
+//  Path to the debug symbol file
+//  Default: NULL
+// uitype (tui [0] /gui [1]):
+//  Type of UI to use
+//  Default: TUI
+char *binfilename, *srcfilename, *dbgsymfilename;
+int uitype;
 
 // Reads a hex value from the user and returns it as a uint16_t type
 uint16_t read_hex_u16(void);
@@ -70,10 +88,6 @@ void restoreTerminal();
 // Dropack handler
 // For C23 standard we need to define the fucntion such that it takes 1 integer
 // arg We arent using this anywhere yet
-void sigintHandlerTerminal(int signum);
-void sigintHandlerConsole(int signum);
-
-
 // Function to get character sync-ly without messing up the stdin buffer
 int getCharacter();
 
@@ -90,6 +104,9 @@ breakpoint *bpList;
 int bpListSize;
 int nBreakpoints;
 
+// Parse command line args and set flags for initialization
+void parseCmdLineArgs(int argc, char **argv);
+
 // Creates a breakpoint via address
 // Symbol breakpoints need to be converted to address by caller
 void setBreakpoint(uint16_t bp);
@@ -100,7 +117,7 @@ void rmBreakpoint(uint16_t bp);
 
 // Read debug symbols (only when -dsym flag given at entry or user points
 // the debugger to the file internally)
-int readDbgSyms(FILE *file);
+void readDbgSyms(const char *fname);
 
 // Takes a string, converts to integer if possible, returns flag
 int strToInt(const char *s, int *out);
@@ -112,4 +129,3 @@ int getCmdTokens(char *cmdString, char *tokenArray[], size_t tokenArraySize);
 // Parses command string, returns a CommandType to be used inside a switch
 // statement
 CommandType parseCommand(const char *cmd);
-

@@ -10,6 +10,65 @@
 #include <string.h>
 #include <unistd.h>
 
+void parseCmdLineArgs(int argc, char **argv) {
+  if (argc < 2) {
+    fprintf(stdout, "usage: %s <binary> [flags]\n", argv[0]);
+    fprintf(stdout, "\tflags:-\n");
+    fprintf(stdout, "\t\t-d <filename>: load debug symbols\n");
+    fprintf(stdout, "\t\t-s <filename>: load source code\n");
+    fprintf(stdout, "\t\t-u <type[tui/gui]>: interface type\n");
+    exit(0);
+  }
+
+  binfilename = argv[1];
+
+  if (argc < 3) {
+    srcfilename = NULL;
+    dbgsymfilename = NULL;
+    uitype = 0;
+    return;
+  }
+
+  for (int i = 2; i < argc; i++) {
+    // Load debug symbols file
+    if (strcmp(argv[i], "-d") == 0) {
+      if (i >= argc - 1 || argv[i + 1][0] == '-') {
+        fprintf(stderr, "Missing argument file: -d <filename>\n");
+        exit(1);
+      }
+      dbgsymfilename = argv[i + 1];
+    }
+
+    // Load source code
+    if (strcmp(argv[i], "-s") == 0) {
+      if (i >= argc - 1 || argv[i + 1][0] == '-') {
+        fprintf(stderr, "Missing argument file: -s <filename>\n");
+        exit(1);
+      }
+      srcfilename = argv[i];
+    }
+
+    // Set ui type
+    if (strcmp(argv[i], "-u") == 0) {
+      if (i >= argc - 1 || argv[i + 1][0] == '-') {
+        fprintf(stderr, "Missing argument option: -u <TUI/gui>\n");
+        fprintf(stderr, "Defaulting to TUI\n");
+        uitype = 0;
+      } else if (strcmp(argv[i + 1], "gui") == 0) {
+        uitype = 1;
+      } else if (strcmp(argv[i + 1], "tui") == 0) {
+        uitype = 0;
+      } else {
+        fprintf(stderr, "Invalid option for arg -u: %s\n", argv[i+1]);
+        fprintf(stderr, "Defaulting to TUI\n");
+        uitype = 0;
+      }
+    }
+  }
+
+  return;
+}
+
 uint16_t read_hex_u16(void) {
   char buf[32];
   char *end;
@@ -54,14 +113,6 @@ void showmem(uint16_t startaddr, uint16_t endaddr) {
       break;
     addr += 16;
   }
-}
-
-void sigintHandlerTerminal(int signum) {
-  signal(SIGINT, SIG_DFL); // Reset the sigint to quit
-}
-
-void sigintHandlerConsole(int signum) {
-  endwin();
 }
 
 int bpListSize = 0;
@@ -124,22 +175,31 @@ void rmBreakpoint(uint16_t bp) {
 // Read debug symbols (only when -dsym flag given at entry or user points
 // the debugger to the file internally). Parses the symbols and writes
 // to a global symbol table. Returns the number of bytes read.
-int readDbgSyms(FILE *f) {
-  if (!f) {
-    perror("fopen: ");
-    return -1;
+void readDbgSyms(const char *fname) {
+  FILE *f;
+  char filename[32];
+
+  if (fname) {
+    strncpy(filename, fname, 32);
+  } else {
+    DISPLAY_CONSOLE_ECHO("Give symbol file name: ");
+    DISPLAY_CONSOLE_GETCMD(filename);
   }
 
-  int linesRead = 0;
+  f = fopen(filename, "rb");
+  if (!f) {
+    DISPLAY_CONSOLE_ECHO("fopen error! Couldnt open file: ");
+    perror(" ");
+    return;
+  }
+
   char buf[256];
   while (fgets(buf, sizeof(buf), f)) {
     // parseDbgSymLine();
-    linesRead++;
   }
-  DISPLAY_CONSOLE_ECHO("Read %d lines\n", linesRead);
-  fclose(f);
 
-  return linesRead;
+  fclose(f);
+  return;
 }
 
 int strToInt(const char *s, int *out) {
@@ -221,6 +281,15 @@ CommandType parseCommand(const char *cmd) {
     return CMD_LISTBREAKPOINTS;
   if (!strcmp(cmd, "listbp"))
     return CMD_LISTBREAKPOINTS;
+
+  if (!strcmp(cmd, "ld"))
+    return CMD_LOADSRC;
+  if (!strcmp(cmd, "lds"))
+    return CMD_LOADSRC;
+  if (!strcmp(cmd, "load"))
+    return CMD_LOADSRC;
+  if (!strcmp(cmd, "ldsrc"))
+    return CMD_LOADSRC;
 
   if (!strcmp(cmd, "m"))
     return CMD_MEMORY;

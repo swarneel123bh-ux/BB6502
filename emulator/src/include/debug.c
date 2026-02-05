@@ -14,22 +14,82 @@
 #include <termios.h>
 #include <unistd.h>
 
-void runDebugger() {
+void sigintHandlerTerminal(int signum) {
+  signal_ = SIG_INTERRUPT_TERMINAL;
+  signal(SIGINT, SIG_DFL); // Reset the sigint to quit
+  DISPLAY_CONSOLE_ECHO("\tSIG_INTERRUPT_TERMINAL\n");
+  return;
+}
+
+void sigintHandlerConsole(int signum) {
+  cleanUpDbg();
+  exit(0);
+}
+
+// Definitions required for the fake6502 emulator
+uint8_t read6502(uint16_t address) { return MEM6502[address]; }
+void write6502(uint16_t address, uint8_t value) { MEM6502[address] = value; }
+
+void cleanUpDbg() {
+  free(MEM6502);
+  free(bpList);
+  endwin();
+}
+
+void initDbg() {
+  FILE *f = fopen(binfilename, "rb");
+  if (!f) {
+    fprintf(stderr, "Failed to open file %s: ", binfilename);
+    perror("fopen:");
+    exit(1);
+  }
+
+  // Allocate memory for RAM and load the binary file
+  MEM6502 = (uint8_t *)calloc(0x10000, sizeof(uint8_t));
+  if (!MEM6502) {
+    fprintf(stderr, "Failed to allocate memory for 6502! Crashing...\n");
+    exit(1);
+  }
+
+  uint8_t tempbyte = 0x00;
+  uint16_t tempaddr = 0x0000;
+  int bytesRead = 0;
+  while (fread(&tempbyte, sizeof(uint8_t), 1, f)) {
+    write6502(tempaddr, tempbyte);
+    tempaddr++;
+    bytesRead++;
+  }
+  printf("Read %d bytes\n", bytesRead);
+  fclose(f);
+
   uartInReg = read6502(UARTINREG_ADDR) | read6502(UARTINREG_ADDR + 1) << 8;
   uartOutReg = read6502(UARTOUTREG_ADDR) | read6502(UARTOUTREG_ADDR + 1) << 8;
   ixReg = read6502(IXFLAGREG_ADDR) | read6502(IXFLAGREG_ADDR + 1) << 8;
 
   DISPLAY_INITDISPLAY();
-
-  // Sanity check before starting
   DISPLAY_CONSOLE_ECHO("uartInReg: %04hx\n", uartInReg);
   DISPLAY_CONSOLE_ECHO("uartOutReg: %04hx\n", uartOutReg);
   DISPLAY_CONSOLE_ECHO("ixReg: %04hx\n", ixReg);
 
+  dbgRunning = false;
+  currentlyAtBp = false;
+  insideTerminal = false;
+  return;
+}
+
+void resetDbg() {
+  reset6502();
+  write6502(ixReg, 0x00);
+  DISPLAY_CONSOLE_ECHO("\n");
   dbgRunning = true;
   currentlyAtBp = false;
+  insideTerminal = false;
+  return;
+}
 
-  reset6502();
+void runDebugger() {
+
+  resetDbg();
   while (dbgRunning) {
 
     DISPLAY_CONSOLE_GETCMD(buf);
@@ -83,8 +143,6 @@ void runDebugger() {
       break;
     }
   }
-
-  endwin();
 }
 
 void sendToUart(uint8_t k) {
@@ -258,15 +316,22 @@ bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int *bpNum) {
   return false;
 }
 
-// NEED TO PRETTIFIY IT
-int runContinuous(int *signal_) {
+int runContinuous() {
   signal(SIGINT, sigintHandlerTerminal);
 
   int atBreakpoint = -1;
-  while (1) {
+  insideTerminal = true;
+  while (insideTerminal) {
+    
+    if (signal_ == SIG_INTERRUPT_TERMINAL) {
+      insideTerminal = false;
+      break;
+    }
+
     int sig = performChecks();
-    if (sig == SIG_PROGRAM_EXITED || sig == SIG_CONTROL_RETURNED) {
-      *signal_ = sig;
+    if (sig == SIG_PROGRAM_EXITED || sig == SIG_CONTROL_RETURNED ) {
+      signal_ = sig;
+      insideTerminal = false;
       break;
     }
 
@@ -298,20 +363,17 @@ int runContinuous(int *signal_) {
 
 void runDebuggerContinuous() {
   noecho();
-  int signal = SIG_NOSIG;
-  int brkpt = runContinuous(&signal);
+  signal_ = SIG_NOSIG;
+  DISPLAY_CONSOLE_ECHO("\n\tGoing into continuous execution\n");
+  int brkpt = runContinuous();
   echo();
 
-  DISPLAY_CONSOLE_ECHO("\n  Control returned to debugger\n");
-  if (signal == SIG_PROGRAM_EXITED) {
-    DISPLAY_CONSOLE_ECHO("\n  Program exited. Restart/Exit? [r/E] :");
+  DISPLAY_CONSOLE_ECHO("\n\tBack into debugger\n");
+  if (signal_ == SIG_PROGRAM_EXITED) {
+    DISPLAY_CONSOLE_ECHO("\n\tProgram exited. Restart/Exit? [r/E] :");
     int c = DISPLAY_CONSOLE_GETCHAR();
     if (c == 'r') {
-      reset6502();
-      write6502(ixReg, 0x00);
-      DISPLAY_CONSOLE_ECHO("\n");
-      dbgRunning = true;
-      currentlyAtBp = false;
+      resetDbg();
     } else {
       dbgRunning = false;
       return;
