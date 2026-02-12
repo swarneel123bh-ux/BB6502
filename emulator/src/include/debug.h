@@ -7,60 +7,74 @@
 #include "display.h"
 
 // Global vars
-bool dbgRunning;
-bool currentlyAtBp;
-char buf[100];
+extern bool dbgRunning;
+extern bool insideTerminal;
+extern bool currentlyAtBp;
+extern char buf[100];
+extern int signal_;          // G// Address of the Interface Status Registerlobal signal tracker
 
 // Initializes 6502 terminal with ncurses and creates terminal window
 // oid initTerminal();
 
 // Creates debugger window with ncurses
-// void initDbg();
+extern void initDbg();
+
+// Deallocates any data and ensures a clean exit
+extern void cleanUpDbg();
+
+// Basically reinitializes the debugger without intializing ncurses
+// Breakpoints remain
+// processor is resetted
+extern void resetDbg();
 
 // Send a keyhit to UART and cause interrupt
-void sendToUart(uint8_t k);
+extern void sendToUart(uint8_t k);
 
 // Function to read from the uart when b0 ixReg flag is set
-uint8_t readFromUart();
+extern uint8_t readFromUart();
 
 // Run the 6502 instructions asynchronously
-int runContinuous(int* signal);
+extern int runContinuous();
 
 // Run the debugger
-void runDebugger();
+extern void runDebugger();
 
 // Display the help
-void displayHelp();
+extern void displayHelp();
 
 // Decode the instruction current pc is at into assembly
-void disassembleInstrs(char *cmdtoks[], size_t cmdtoksiz);
+extern void disassembleInstrs(char *cmdtoks[], size_t cmdtoksiz);
 
 // Add a breakpoint
-void addNewBreakpoint(char *cmdtoks[], size_t cmdtoksiz);
+extern void addNewBreakpoint(char *cmdtoks[], size_t cmdtoksiz);
 
 // Handles runContinuous command
-void runDebuggerContinuous();
+extern void runDebuggerContinuous();
 
 // List all the breakpoints currently set
-void listAllBreakpoints();
+extern void listAllBreakpoints();
 
 // Print memory contents
-void printMemRange(char *cmdtoks[], size_t cmdtoklen);
+extern void printMemRange(char *cmdtoks[], size_t cmdtoklen);
 
 // Show register contents
-void printRegisters();
+extern void printRegisters();
 
 // Chekc if 6502 program called for exit
-bool progExited();
+extern bool progExited();
 
 // Step the 6502 for given number of steps
-void performStep(char *cmdtoks[], size_t cmdtoksize);
+extern void performStep(char *cmdtoks[], size_t cmdtoksize);
 
 // Perform all interfacing checks and returns the signal for the action performed
-int performChecks();
+extern int performChecks();
 
 // Check if current pc is a breakpoint
-bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int* bpnum);
+extern bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int* bpnum);
 
 // Print to 6502 terminal
 //void putcharVGA(char c, window_t terminal);
+
+// Handle Ctrl+C signal when inside console/terminal
+extern void sigintHandlerTerminal();
+extern void sigintHandlerConsole();

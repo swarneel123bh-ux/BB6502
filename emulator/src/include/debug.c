@@ -4,8 +4,9 @@
 #include "fake6502.h"
 #include "helpers.h"
 #include "shared.h"
-#include <errno.h>
+#include "vobjdump.h"
 #include <fcntl.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -14,25 +15,106 @@
 #include <termios.h>
 #include <unistd.h>
 
-void runDebugger() {
+uint8_t *MEM6502;
+bool dbgRunning;
+bool insideTerminal;
+bool currentlyAtBp;
+char buf[100];
+int signal_;
+uint16_t uartInReg;
+uint16_t uartOutReg;
+uint16_t ixReg;
+breakpoint *bpList;
+int nofDbgSymbols;
+struct vobj_symbol *dbgSymbols;
+
+void sigintHandlerTerminal() {
+  signal_ = SIG_INTERRUPT_TERMINAL;
+  signal(SIGINT, SIG_DFL); // Reset the sigint to quit
+  DISPLAY_CONSOLE_ECHO("\tSIG_INTERRUPT_TERMINAL\n");
+  return;
+}
+
+void sigintHandlerConsole() {}
+
+// Definitions required for the fake6502 emulator
+uint8_t read6502(uint16_t address) { return MEM6502[address]; }
+void write6502(uint16_t address, uint8_t value) { MEM6502[address] = value; }
+
+void cleanUpDbg() {
+  free(MEM6502);
+  for (int i = 0; i < nBreakpoints; i++) {
+    if (bpList[i].symbol)
+      free(bpList[i].symbol);
+  }
+  free(bpList);
+  free(dbgSymbols);
+  endwin();
+}
+
+void initDbg() {
+  FILE *f = fopen(binfilename, "rb");
+  if (!f) {
+    fprintf(stderr, "Failed to open file %s: ", binfilename);
+    perror("fopen:");
+    exit(1);
+  }
+
+  // Allocate memory for RAM and load the binary file
+  MEM6502 = (uint8_t *)calloc(0x10000, sizeof(uint8_t));
+  if (!MEM6502) {
+    fprintf(stderr, "Failed to allocate memory for 6502! Crashing...\n");
+    exit(1);
+  }
+
+  uint8_t tempbyte = 0x00;
+  uint16_t tempaddr = 0x0000;
+  int bytesRead = 0;
+  while (fread(&tempbyte, sizeof(uint8_t), 1, f)) {
+    write6502(tempaddr, tempbyte);
+    tempaddr++;
+    bytesRead++;
+  }
+  printf("Read %d bytes\n", bytesRead);
+  fclose(f);
+
   uartInReg = read6502(UARTINREG_ADDR) | read6502(UARTINREG_ADDR + 1) << 8;
   uartOutReg = read6502(UARTOUTREG_ADDR) | read6502(UARTOUTREG_ADDR + 1) << 8;
   ixReg = read6502(IXFLAGREG_ADDR) | read6502(IXFLAGREG_ADDR + 1) << 8;
 
-  DISPLAY_INITDISPLAY();
+  printf("Loading debug symbols: %s\n", dbgsymfilename);
+  readDbgSyms(dbgsymfilename);
+  // readSrc(srcfilename);
 
-  // Sanity check before starting
+  DISPLAY_INITDISPLAY();
   DISPLAY_CONSOLE_ECHO("uartInReg: %04hx\n", uartInReg);
   DISPLAY_CONSOLE_ECHO("uartOutReg: %04hx\n", uartOutReg);
   DISPLAY_CONSOLE_ECHO("ixReg: %04hx\n", ixReg);
 
+  dbgRunning = false;
+  currentlyAtBp = false;
+  insideTerminal = false;
+
+  return;
+}
+
+void resetDbg() {
+  reset6502();
+  write6502(ixReg, 0x00);
+  DISPLAY_CONSOLE_ECHO("\n");
   dbgRunning = true;
   currentlyAtBp = false;
+  insideTerminal = false;
+  return;
+}
 
-  reset6502();
+void runDebugger() {
+
+  resetDbg();
   while (dbgRunning) {
 
-    DISPLAY_CONSOLE_GETCMD(buf);
+    DISPLAY_CONSOLE_GETCMD(buf, sizeof(buf));
+
     if (buf[0] == '\n' || strlen(buf) == 0)
       continue;
     size_t cmdTokArrSiz = 10;
@@ -83,12 +165,10 @@ void runDebugger() {
       break;
     }
   }
-
-  endwin();
 }
 
 void sendToUart(uint8_t k) {
-  while (read6502(ixReg & 0b00000010)) {
+  while (read6502(ixReg & 0x01)) {
   }
   write6502(uartInReg, k);
   irq6502();
@@ -141,16 +221,35 @@ void disassembleInstrs(char *cmdtoks[], size_t cmdtoksiz) {
 
 void addNewBreakpoint(char *cmdtoks[], size_t cmdtoksiz) {
 
+  // No symbol/addr, set at curret pc
   if (cmdtoksiz < 2) {
     DISPLAY_CONSOLE_ECHO("  Setting new breakpoint at 0x%04hx\n", pc);
-    setBreakpoint(pc); // If no addr/symbol given set at current addr
+    setBreakpoint(pc, NULL); // If no addr/symbol given set at current addr
     return;
   }
 
-  char *end;
-  uint16_t bp = strtoul(cmdtoks[1], &end, 0);
-  DISPLAY_CONSOLE_ECHO("  Setting new breakpoint at 0x%04hx\n", bp);
-  setBreakpoint(bp);
+  // Check whether symbol/addr is given
+  if (strStartsWith("0x", cmdtoks[1])) { // Addr given
+    char *end;
+    uint16_t bp = strtoul(cmdtoks[1], &end, 0);
+    DISPLAY_CONSOLE_ECHO("  Setting new breakpoint at 0x%04hx\n", bp);
+    setBreakpoint(bp, NULL);
+    return;
+  }
+
+  // Symbol given
+  for (int i = 0; i < nofDbgSymbols; i++) {
+    if (strcmp(cmdtoks[1], dbgSymbols[i].symbolname) == 0) {
+
+      DISPLAY_CONSOLE_ECHO(
+          "  Setting new breakpoint at name=%s, addr=0x%04hx\n",
+          dbgSymbols[i].symbolname, BPTMASK(dbgSymbols[i].val));
+      setBreakpoint((uint16_t)dbgSymbols[i].val, dbgSymbols[i].symbolname);
+      return;
+    }
+  }
+
+  DISPLAY_CONSOLE_ECHO("\tsymbol=%s not found!\n", cmdtoks[1]);
   return;
 }
 
@@ -164,8 +263,13 @@ void listAllBreakpoints() {
   for (int i = 0; i < nBreakpoints; i++) {
     char line[64];
     memset(line, 0, sizeof(line));
-    int instrlen = disassemble_6502(bpList[i].address, read6502, line);
-    DISPLAY_CONSOLE_ECHO("%04hx\t%s\n", bpList[i].address, line);
+    disassemble_6502(bpList[i].address, read6502, line);
+    if (bpList[i].symbol) {
+      DISPLAY_CONSOLE_ECHO("\t%s: 0x%04hx\t%s\n", bpList[i].symbol,
+                           bpList[i].address, line);
+    } else {
+      DISPLAY_CONSOLE_ECHO("\t\t0x%04hx\t%s\n", bpList[i].address, line);
+    }
   }
 
   return;
@@ -181,7 +285,7 @@ void printMemRange(char *cmdtoks[], size_t cmdtoklen) {
     startAddr = read_hex_u16();
     DISPLAY_CONSOLE_ECHO("Give the ending address in hex [0x...]: ");
     endAddr = read_hex_u16();
-    if (endAddr < startAddr | endAddr > 0xFFFF) {
+    if (endAddr < startAddr) {
       DISPLAY_CONSOLE_ECHO("Invalid input %04hx\n", endAddr);
       return;
     }
@@ -191,10 +295,12 @@ void printMemRange(char *cmdtoks[], size_t cmdtoklen) {
 
   // Start addr given but stop addr not given
   if (cmdtoklen < 3) {
+    char* end_;
+    startAddr = strtoul(cmdtoks[1], &end_, 0);
     DISPLAY_CONSOLE_ECHO("Give the ending address in hex [0x...]: ");
     endAddr = read_hex_u16();
     showmem(startAddr, endAddr);
-    if (endAddr < startAddr | endAddr > 0xFFFF) {
+    if (endAddr < startAddr) {
       DISPLAY_CONSOLE_ECHO("Invalid input %04hx\n", endAddr);
       return;
     }
@@ -205,7 +311,7 @@ void printMemRange(char *cmdtoks[], size_t cmdtoklen) {
   char *end_;
   startAddr = strtoul(cmdtoks[1], &end_, 0);
   endAddr = strtoul(cmdtoks[2], &end_, 0);
-  if (endAddr < startAddr | endAddr > 0xFFFF) {
+  if (endAddr < startAddr) {
     DISPLAY_CONSOLE_ECHO("Invalid input %04hx\n", endAddr);
     return;
   }
@@ -221,7 +327,7 @@ void printRegisters() {
 }
 
 int performChecks() {
-  if (read6502(ixReg) & 0b10000000) {
+  if (read6502(ixReg) & 0x80) {
     return SIG_PROGRAM_EXITED;
   }
 
@@ -258,15 +364,22 @@ bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int *bpNum) {
   return false;
 }
 
-// NEED TO PRETTIFIY IT
-int runContinuous(int *signal_) {
+int runContinuous() {
   signal(SIGINT, sigintHandlerTerminal);
 
   int atBreakpoint = -1;
-  while (1) {
+  insideTerminal = true;
+  while (insideTerminal) {
+
+    if (signal_ == SIG_INTERRUPT_TERMINAL) {
+      insideTerminal = false;
+      break;
+    }
+
     int sig = performChecks();
     if (sig == SIG_PROGRAM_EXITED || sig == SIG_CONTROL_RETURNED) {
-      *signal_ = sig;
+      signal_ = sig;
+      insideTerminal = false;
       break;
     }
 
@@ -279,6 +392,7 @@ int runContinuous(int *signal_) {
     memset(line, 0, sizeof(line));
     instrlen = disassemble_6502(pc, read6502, line);
     if (currentlyAtBp) {
+      currentlyAtBp = false;
       step6502();
       continue;
     }
@@ -298,20 +412,17 @@ int runContinuous(int *signal_) {
 
 void runDebuggerContinuous() {
   noecho();
-  int signal = SIG_NOSIG;
-  int brkpt = runContinuous(&signal);
+  signal_ = SIG_NOSIG;
+  DISPLAY_CONSOLE_ECHO("\n\tGoing into continuous execution\n");
+  int brkpt = runContinuous();
   echo();
 
-  DISPLAY_CONSOLE_ECHO("\n  Control returned to debugger\n");
-  if (signal == SIG_PROGRAM_EXITED) {
-    DISPLAY_CONSOLE_ECHO("\n  Program exited. Restart/Exit? [r/E] :");
+  DISPLAY_CONSOLE_ECHO("\n\tBack into debugger\n");
+  if (signal_ == SIG_PROGRAM_EXITED) {
+    DISPLAY_CONSOLE_ECHO("\n\tProgram exited. Restart/Exit? [r/E] :");
     int c = DISPLAY_CONSOLE_GETCHAR();
     if (c == 'r') {
-      reset6502();
-      write6502(ixReg, 0x00);
-      DISPLAY_CONSOLE_ECHO("\n");
-      dbgRunning = true;
-      currentlyAtBp = false;
+      resetDbg();
     } else {
       dbgRunning = false;
       return;
@@ -321,8 +432,9 @@ void runDebuggerContinuous() {
   if (brkpt >= 0) {
     char buf[32];
     memset(buf, 0, sizeof(buf));
-    int instrlen = disassemble_6502(pc, read6502, buf);
-    DISPLAY_CONSOLE_ECHO("  Breakpoint [%d] at addr %04hx: %s\n", brkpt,
+    disassemble_6502(pc, read6502, buf);
+    DISPLAY_CONSOLE_ECHO("  Breakpoint [%d]:%s at addr %04hx: %s\n", brkpt,
+                         (bpList[brkpt].symbol) ? bpList[brkpt].symbol : "",
                          bpList[brkpt].address, buf);
     currentlyAtBp = true;
   }
@@ -360,8 +472,9 @@ void performStep(char *cmdtoks[], size_t cmdtoksize) {
 
     int bpNum = -1;
     if (checkIfAtBreakpoint(pc, instrlen, &bpNum)) {
-      DISPLAY_CONSOLE_ECHO("  At Breakpoint [%d]: %04hx   %s\n", bpNum, pc,
-                           line);
+      DISPLAY_CONSOLE_ECHO("  At Breakpoint [%d] %s: %04hx   %s\n",
+                           (bpList[bpNum].symbol) ? bpList[bpNum].symbol : "",
+                           bpNum, pc, line);
       currentlyAtBp = true;
       return;
     }

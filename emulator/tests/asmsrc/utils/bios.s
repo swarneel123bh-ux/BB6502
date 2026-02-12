@@ -7,7 +7,7 @@
 ; Reset code
 ; ------
 reset:
-  sei       ; Set interrupt disable
+  sei
   cld       ; Clear decimal mode
   ldx #$FF
   txs       ; Init stack at 0xff
@@ -88,6 +88,7 @@ puts:
 .loop:
   lda (STRPTR),y
   beq .done
+  ldx #00
   jsr putc
   iny
   jmp .loop
@@ -111,6 +112,7 @@ gets:
 
 .loop:
   jsr getc        ; Wait to get a character
+  ldx #00
   jsr putc        ; Echo the character received
   cmp #$0a        ; Check if its newline
   beq .done       ; If it is, we are done
@@ -135,12 +137,10 @@ gets:
 ;   A: byte to send to uart
 ;   X: output mode:-
 ;       #00: Text mode
-;       #01: VGA mode (terminal buffer shall be populated)
+;       #01: VGA mode (terminal buffer shall be populated) (TO IMPLEMENT)
 ; Communicates with the uart and the emulator via registers
 ; ------
 putc:
-  pha
-  txa
   pha
 
   ; Wait while b0 is set
@@ -151,16 +151,7 @@ putc:
 
   ; Store and set b0
   pla
-  tax
-  beq .textmode
-  lda IXFLAGREG
-  ora #%00100000  ; Set terminal vga output
-  sta IXFLAGREG
-
-.textmode:
-  pla
   sta UARTOUTREG
-
   pha
   lda IXFLAGREG
   ora #$00000001        ; Set b0 => Emulator will output the character

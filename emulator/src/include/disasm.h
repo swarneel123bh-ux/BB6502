@@ -114,4 +114,4 @@ static const Opcode optable[256] = {
 };
 
 // Actual disassembling function
-int disassemble_6502( uint16_t pc, uint8_t (*read)(uint16_t), char *out);
+extern int disassemble_6502( uint16_t pc, uint8_t (*read)(uint16_t), char *out);

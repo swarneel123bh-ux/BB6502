@@ -1,4 +1,51 @@
 # ==================================================
+# OS Detection
+# ==================================================
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Linux)
+    HOST_OS := linux
+endif
+ifeq ($(UNAME_S),Darwin)
+    HOST_OS := macos
+endif
+ifeq ($(OS),Windows_NT)
+    HOST_OS := windows
+endif
+
+ifndef HOST_OS
+$(error Unsupported operating system)
+endif
+
+# ==================================================
+# Toolchain (OS-specific)
+# ==================================================
+ifeq ($(HOST_OS),linux)
+    CC      := gcc
+    LLDB    := lldb
+    LDFLAGS := -lpthread -lncurses
+endif
+
+ifeq ($(HOST_OS),macos)
+    CC      := gcc
+    LLDB    := lldb
+    LDFLAGS := -lpthread -lncurses
+endif
+
+ifeq ($(HOST_OS),windows)
+    CC      := x86_64-w64-mingw32-gcc
+    LLDB    :=
+    LDFLAGS := -lws2_32 -lpthread
+endif
+
+# ==================================================
+# Common Flags
+# ==================================================
+CFLAGS   := -O2 -I$(INC_DIR) -DHOST_OS_$(shell echo $(HOST_OS) | tr a-z A-Z) -fno-common -Wall -Werror -Wpedantic -pedantic
+DBGFLAGS := -g3 -O0
+
+
+# ==================================================
 # Toolchain
 # ==================================================
 CC      := gcc
@@ -46,10 +93,8 @@ TEST_VOBJ := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.vobj,$(ASM_SRCS))
 # ==================================================
 # Flags
 # ==================================================
-# gcc flags
-CFLAGS   := -O2 -I$(INC_DIR)
-DBGFLAGS := -g3 -O0
 LDFLAGS  := -lpthread -lncurses
+
 # vasm flags
 VASM_ASM_FLAGS  := -Fbin  -dotdir -I$(TEST_SRC_DIR)/utils
 VASM_SYM_FLAGS  := -dotdir -I$(TEST_SRC_DIR)/utils
@@ -59,7 +104,24 @@ VASM_VOBJ_FLAGS := -Fvobj -dotdir -I$(TEST_SRC_DIR)/utils
 # ==================================================
 # Phony Targets
 # ==================================================
-.PHONY: all release debug clean dirs tests test run_test run_debug scripts
+.PHONY: all release debug clean dirs tests test run_test run_debug scripts native linux macos windows
+
+# ==================================================
+# OS Entry Points
+# ==================================================
+native:
+	@echo "Detected OS: $(HOST_OS)"
+	@$(MAKE) all
+
+linux:
+	@$(MAKE) HOST_OS=linux all
+
+macos:
+	@$(MAKE) HOST_OS=macos all
+
+windows:
+	@$(MAKE) HOST_OS=windows all
+
 
 
 # ==================================================
@@ -127,7 +189,11 @@ run_test: release test
 	$(TARGET) $(TEST_BUILD)/uart_test.out
 
 run_debug: debug test
+ifeq ($(HOST_OS),windows)
+	@echo "Debugger not configured for Windows"
+else
 	$(LLDB) -- $(TARGET_DBG) $(TEST_BUILD)/uart_test.out
+endif
 
 # ==================================================
 # Convenience Scripts

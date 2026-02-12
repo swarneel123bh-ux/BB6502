@@ -1,5 +1,7 @@
 #include "helpers.h"
 #include "fake6502.h"
+#include "vobjdump.h"
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -9,6 +11,70 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+char *binfilename, *srcfilename, *dbgsymfilename;
+int uitype;
+struct termios oldt;
+int old_stdin_flags;
+
+void parseCmdLineArgs(int argc, char **argv) {
+  if (argc < 2) {
+    fprintf(stdout, "usage: %s <binary> [flags]\n", argv[0]);
+    fprintf(stdout, "\tflags:-\n");
+    fprintf(stdout, "\t\t-d <filename>: load debug symbols\n");
+    fprintf(stdout, "\t\t-s <filename>: load source code\n");
+    fprintf(stdout, "\t\t-u <type[tui/gui]>: interface type\n");
+    exit(0);
+  }
+
+  binfilename = argv[1];
+
+  if (argc < 3) {
+    srcfilename = NULL;
+    dbgsymfilename = NULL;
+    uitype = 0;
+    return;
+  }
+
+  for (int i = 2; i < argc; i++) {
+    // Load debug symbols file
+    if (strcmp(argv[i], "-d") == 0) {
+      if (i >= argc - 1 || argv[i + 1][0] == '-') {
+        fprintf(stderr, "Missing argument file: -d <filename>\n");
+        exit(1);
+      }
+      dbgsymfilename = argv[i + 1];
+    }
+
+    // Load source code
+    if (strcmp(argv[i], "-s") == 0) {
+      if (i >= argc - 1 || argv[i + 1][0] == '-') {
+        fprintf(stderr, "Missing argument file: -s <filename>\n");
+        exit(1);
+      }
+      srcfilename = argv[i];
+    }
+
+    // Set ui type
+    if (strcmp(argv[i], "-u") == 0) {
+      if (i >= argc - 1 || argv[i + 1][0] == '-') {
+        fprintf(stderr, "Missing argument option: -u <TUI/gui>\n");
+        fprintf(stderr, "Defaulting to TUI\n");
+        uitype = 0;
+      } else if (strcmp(argv[i + 1], "gui") == 0) {
+        uitype = 1;
+      } else if (strcmp(argv[i + 1], "tui") == 0) {
+        uitype = 0;
+      } else {
+        fprintf(stderr, "Invalid option for arg -u: %s\n", argv[i + 1]);
+        fprintf(stderr, "Defaulting to TUI\n");
+        uitype = 0;
+      }
+    }
+  }
+
+  return;
+}
 
 uint16_t read_hex_u16(void) {
   char buf[32];
@@ -56,25 +122,17 @@ void showmem(uint16_t startaddr, uint16_t endaddr) {
   }
 }
 
-void sigintHandlerTerminal(int signum) {
-  signal(SIGINT, SIG_DFL); // Reset the sigint to quit
-}
-
-void sigintHandlerConsole(int signum) {
-  endwin();
-}
-
 int bpListSize = 0;
 int nBreakpoints = 0;
 
 // Creates a breakpoint by address in mem
 // Symbol breakpoints need to be taken care of by caller
-void setBreakpoint(uint16_t addr) {
+void setBreakpoint(uint16_t addr, char symbol[MAX_SYMBOL_LENGTH]) {
   // Check if memory alloced
   if (bpListSize <= 0) {
     bpListSize = 10;
     bpList = (breakpoint *)malloc(sizeof(breakpoint) * bpListSize);
-    memset(bpList, 0xFFFF, sizeof(breakpoint) * bpListSize);
+    memset(bpList, 0x0000, sizeof(breakpoint) * bpListSize);
   }
 
   // Check if were close to filling up alloced memory
@@ -91,9 +149,21 @@ void setBreakpoint(uint16_t addr) {
 
   // Find closest instruction that is smaller than or equal to given addr,
   // set breakpoint to that address
-  //
-  //
-  bpList[nBreakpoints++].address = addr;
+  bpList[nBreakpoints].address = addr;
+
+  // Check if a valid symbol is given
+  if (!symbol) {
+    bpList[nBreakpoints].symbol = NULL;
+    nBreakpoints++;
+    return;
+  }
+
+  // Write symbol if valid
+  bpList[nBreakpoints].symbol =
+      (char *)malloc(sizeof(char) * MAX_SYMBOL_LENGTH);
+  strncpy(bpList[nBreakpoints].symbol, symbol, MAX_SYMBOL_LENGTH-1);
+  dbgSymbols[nBreakpoints++].symbolname[strlen(symbol)] =
+      0; // append 0 at the end of the symbol name
   return;
 }
 
@@ -121,25 +191,88 @@ void rmBreakpoint(uint16_t bp) {
   return;
 }
 
-// Read debug symbols (only when -dsym flag given at entry or user points
-// the debugger to the file internally). Parses the symbols and writes
-// to a global symbol table. Returns the number of bytes read.
-int readDbgSyms(FILE *f) {
+// Call vobjdump and read symbol table
+void readDbgSyms(const char *fname) {
+  if (!fname) {
+    fprintf(stderr, "vobjdump: Not a valid file");
+    return;
+  }
+
+  // Open the file and read symbols using vobjdump functions
+  FILE *f = fopen(fname, "rb");
   if (!f) {
-    perror("fopen: ");
-    return -1;
+    fprintf(stderr, "vobjdump: Cannot open \"%s\" for reading!\n", fname);
+    return;
   }
 
-  int linesRead = 0;
-  char buf[256];
-  while (fgets(buf, sizeof(buf), f)) {
-    // parseDbgSymLine();
-    linesRead++;
+  vlen = filesize(f, fname);
+  if (!vlen) {
+    fprintf(stderr, "vobjdump: Read error on \"%s\"!\n", fname);
+    fclose(f);
+    return;
   }
-  DISPLAY_CONSOLE_ECHO("Read %d lines\n", linesRead);
+
+  vobj = malloc(vlen);
+  if (!vobj) {
+    fprintf(stderr,
+            "vobjdump: Unable to allocate %lu bytes "
+            "to buffer file \"%s\"!\n",
+            vlen, fname);
+    fclose(f);
+    return;
+  }
+
+  if (fread(vobj, 1, vlen, f) != vlen) {
+    fprintf(stderr, "vobjdump: Read error on \"%s\"!\n", fname);
+    free(vobj);
+    fclose(f);
+    return;
+  }
+
+  struct vobj_symbol *vsymbols = NULL;
+  int nsymsRead;
+  vsymbols = vobjdump(&nsymsRead); // Edited vobjdump function, see vobjdump.c
+  // printf("%p\n", (void *)vsymbols);
+  // printf("Read %d symbols from file %s\n", nsymsRead, fname);
+  nofDbgSymbols = 0;
+
+  // Loop once to find out how many debug symbols exist
+  for (int i = 0; i < nsymsRead; i++) {
+    struct vobj_symbol s = vsymbols[i];
+
+    if (strStartsWith(".", s.name) || strStartsWith("org", s.name) ||
+        strAllCaps(s.name))
+      continue;
+
+    nofDbgSymbols++;
+  }
+
+  // Allocate mem
+  dbgSymbols =
+      (struct vobj_symbol *)malloc(sizeof(struct vobj_symbol) * nofDbgSymbols);
+
+  // Loop again to populate dbgSymbols
+  for (int i = 0, k = 0; i < nsymsRead && k < nofDbgSymbols; i++) {
+    struct vobj_symbol s = vsymbols[i];
+
+    // Logic to determine if label goes here
+    if (strStartsWith(".", s.name) || strStartsWith("org", s.name) ||
+        strAllCaps(s.name))
+      continue;
+
+    dbgSymbols[k] = s;
+    strncpy(dbgSymbols[k].symbolname, s.name, MAX_SYMBOL_LENGTH - 1);
+    dbgSymbols[k].symbolname[strlen(s.name)] =
+        0; // append 0 at the end of the symbol name
+    k++;
+    // printf("loaded dbgsym at %04llx\tname=%s\n", BPTMASK(dbgSymbols[k -
+    // 1].val),
+    //       dbgSymbols[k - 1].name);
+  }
+
+  free(vobj);
   fclose(f);
-
-  return linesRead;
+  return;
 }
 
 int strToInt(const char *s, int *out) {
@@ -222,6 +355,15 @@ CommandType parseCommand(const char *cmd) {
   if (!strcmp(cmd, "listbp"))
     return CMD_LISTBREAKPOINTS;
 
+  if (!strcmp(cmd, "ld"))
+    return CMD_LOADSRC;
+  if (!strcmp(cmd, "lds"))
+    return CMD_LOADSRC;
+  if (!strcmp(cmd, "load"))
+    return CMD_LOADSRC;
+  if (!strcmp(cmd, "ldsrc"))
+    return CMD_LOADSRC;
+
   if (!strcmp(cmd, "m"))
     return CMD_MEMORY;
   if (!strcmp(cmd, "mem"))
@@ -270,4 +412,31 @@ CommandType parseCommand(const char *cmd) {
     return CMD_QUIT;
 
   return CMD_INVALIDCMD;
+}
+
+int _strStartsWith(const char *s1, size_t s1len, const char *s2, size_t s2len) {
+  if (s1len > s2len)
+    return 0;
+
+  for (int i = 0; i < s1len; i++) {
+    if (s1[i] != s2[i])
+      return 0;
+  }
+
+  return 1;
+}
+
+int _strAllCaps(const char *s, size_t slen) {
+
+  for (int i = 0; i < slen; i++) {
+    // If the symbol is completely numeric we skip it
+    if (isdigit(s[i]))
+      continue;
+
+    // If the symbol is completely alphabetical, we check if all caps
+    if (isalpha(s[i]) && !(s[i] >= 'A' && s[i] <= 'Z'))
+      return 0;
+  }
+
+  return 1;
 }
