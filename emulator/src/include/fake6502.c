@@ -17,94 +17,94 @@ uint32_t clockticks6502, clockgoal6502;
 uint16_t oldpc, ea, reladdr, value, result;
 uint8_t opcode, oldstatus;
 uint8_t callexternal;
-void (*loopexternal)();
+void (*loopexternal)(void);
 
 // addressing mode functions, calculates effective addresses
-static void imp();
-static void acc();
-static void imm();
-static void zp();
-static void zpx();
-static void zpy();
-static void rel();
-static void abso();
-static void absx();
-static void absy();
-static void ind();
-static void indx();
-static void indy();
-static uint16_t getvalue();
+static void imp(void);
+static void acc(void);
+static void imm(void);
+static void zp(void);
+static void zpx(void);
+static void zpy(void);
+static void rel(void);
+static void abso(void);
+static void absx(void);
+static void absy(void);
+static void ind(void);
+static void indx(void);
+static void indy(void);
+static uint16_t getvalue(void);
 // static uint16_t getvalue16();
 static void putvalue(uint16_t saveval);
 
 // instruction handler functions
-static void adc();
-static void and_();
-static void asl();
-static void bcc();
-static void bcs();
-static void beq();
-static void bit();
-static void bmi();
-static void bne();
-static void bpl();
-static void brk_();
-static void bvc();
-static void bvs();
-static void clc();
-static void cld();
-static void cli();
-static void clv();
-static void cmp();
-static void cpx();
-static void cpy();
-static void dec();
-static void dex();
-static void dey();
-static void eor();
-static void inc();
-static void inx();
-static void iny();
-static void jmp();
-static void jsr();
-static void lda();
-static void ldx();
-static void ldy();
-static void lsr();
-static void nop();
-static void ora();
-static void pha();
-static void php();
-static void pla();
-static void plp();
-static void rol();
-static void ror();
-static void rti();
-static void rts();
-static void sbc();
-static void sec();
-static void sed();
-static void sei();
-static void sta();
-static void stx();
-static void sty();
-static void tax();
-static void tay();
-static void tsx();
-static void txa();
-static void txs();
-static void tya();
+static void adc(void);
+static void and_(void);
+static void asl(void);
+static void bcc(void);
+static void bcs(void);
+static void beq(void);
+static void bit(void);
+static void bmi(void);
+static void bne(void);
+static void bpl(void);
+static void brk_(void);
+static void bvc(void);
+static void bvs(void);
+static void clc(void);
+static void cld(void);
+static void cli(void);
+static void clv(void);
+static void cmp(void);
+static void cpx(void);
+static void cpy(void);
+static void dec(void);
+static void dex(void);
+static void dey(void);
+static void eor(void);
+static void inc(void);
+static void inx(void);
+static void iny(void);
+static void jmp(void);
+static void jsr(void);
+static void lda(void);
+static void ldx(void);
+static void ldy(void);
+static void lsr(void);
+static void nop(void);
+static void ora(void);
+static void pha(void);
+static void php(void);
+static void pla(void);
+static void plp(void);
+static void rol(void);
+static void ror(void);
+static void rti(void);
+static void rts(void);
+static void sbc(void);
+static void sec(void);
+static void sed(void);
+static void sei(void);
+static void sta(void);
+static void stx(void);
+static void sty(void);
+static void tax(void);
+static void tay(void);
+static void tsx(void);
+static void txa(void);
+static void txs(void);
+static void tya(void);
 
 // undocumented instructions
 #ifdef UNDOCUMENTED
-static void lax();
-static void sax();
-static void dcp();
-static void isb();
-static void slo();
-static void rla();
-static void sre();
-static void rra();
+static void lax(void);
+static void sax(void);
+static void dcp(void);
+static void isb(void);
+static void slo(void);
+static void rla(void);
+static void sre(void);
+static void rra(void);
 #else
 #define lax nop
 #define sax nop
@@ -116,7 +116,7 @@ static void rra();
 #define rra nop
 #endif
 
-static void (*addrtable[256])() = {
+static void (*addrtable[256])(void) = {
     imp,  indx, imp,  indx, zp,   zp,   zp,   zp,   imp,  imm,  acc,  imm,
     abso, abso, abso, abso, rel,  indy, imp,  indy, zpx,  zpx,  zpx,  zpx,
     imp,  absy, imp,  absy, absx, absx, absx, absx, abso, indx, imp,  indx,
@@ -140,7 +140,7 @@ static void (*addrtable[256])() = {
     rel,  indy, imp,  indy, zpx,  zpx,  zpx,  zpx,  imp,  absy, imp,  absy,
     absx, absx, absx, absx};
 
-static void (*optable[256])() = {
+static void (*optable[256])(void) = {
     brk_, ora,  nop,  slo, nop, ora,  asl,  slo,  php, ora,  asl,  nop,  nop,
     ora,  asl,  slo,  bpl, ora, nop,  slo,  nop,  ora, asl,  slo,  clc,  ora,
     nop,  slo,  nop,  ora, asl, slo,  jsr,  and_, nop, rla,  bit,  and_, rol,
@@ -184,7 +184,7 @@ void push16(uint16_t pushval) {
 
 void push8(uint8_t pushval) { write6502(BASE_STACK + sp--, pushval); }
 
-uint16_t pull16() {
+uint16_t pull16(void) {
   uint16_t temp16;
   temp16 = read6502(BASE_STACK + ((sp + 1) & 0xFF)) |
            ((uint16_t)read6502(BASE_STACK + ((sp + 2) & 0xFF)) << 8);
@@ -192,9 +192,9 @@ uint16_t pull16() {
   return (temp16);
 }
 
-uint8_t pull8() { return (read6502(BASE_STACK + ++sp)); }
+uint8_t pull8(void) { return (read6502(BASE_STACK + ++sp)); }
 
-void reset6502() {
+void reset6502(void) {
   pc = (uint16_t)read6502(0xFFFC) | ((uint16_t)read6502(0xFFFD) << 8);
   a = 0;
   x = 0;
@@ -204,43 +204,42 @@ void reset6502() {
 }
 
 // addressing mode functions, calculates effective addresses
-static void imp() { // implied
+static void imp(void) { // implied
 }
 
-static void acc() { // accumulator
+static void acc(void) { // accumulator
 }
 
-static void imm() { // immediate
+static void imm(void) { // immediate
   ea = pc++;
 }
 
-static void zp() { // zero-page
+static void zp(void) { // zero-page
   ea = (uint16_t)read6502((uint16_t)pc++);
 }
 
-static void zpx() { // zero-page,X
+static void zpx(void) { // zero-page,X
   ea = ((uint16_t)read6502((uint16_t)pc++) + (uint16_t)x) &
        0xFF; // zero-page wraparound
 }
 
-static void zpy() { // zero-page,Y
+static void zpy(void) { // zero-page,Y
   ea = ((uint16_t)read6502((uint16_t)pc++) + (uint16_t)y) &
        0xFF; // zero-page wraparound
 }
 
-static void
-rel() { // relative for branch ops (8-bit immediate value, sign-extended)
+static void rel(void) { // relative for branch ops (8-bit immediate value, sign-extended)
   reladdr = (uint16_t)read6502(pc++);
   if (reladdr & 0x80)
     reladdr |= 0xFF00;
 }
 
-static void abso() { // absolute
+static void abso(void) { // absolute
   ea = (uint16_t)read6502(pc) | ((uint16_t)read6502(pc + 1) << 8);
   pc += 2;
 }
 
-static void absx() { // absolute,X
+static void absx(void) { // absolute,X
   uint16_t startpage;
   ea = ((uint16_t)read6502(pc) | ((uint16_t)read6502(pc + 1) << 8));
   startpage = ea & 0xFF00;
@@ -254,7 +253,7 @@ static void absx() { // absolute,X
   pc += 2;
 }
 
-static void absy() { // absolute,Y
+static void absy(void) { // absolute,Y
   uint16_t startpage;
   ea = ((uint16_t)read6502(pc) | ((uint16_t)read6502(pc + 1) << 8));
   startpage = ea & 0xFF00;
@@ -268,7 +267,7 @@ static void absy() { // absolute,Y
   pc += 2;
 }
 
-static void ind() { // indirect
+static void ind(void) { // indirect
   uint16_t eahelp, eahelp2;
   eahelp = (uint16_t)read6502(pc) | (uint16_t)((uint16_t)read6502(pc + 1) << 8);
   eahelp2 =
@@ -278,7 +277,7 @@ static void ind() { // indirect
   pc += 2;
 }
 
-static void indx() { // (indirect,X)
+static void indx(void) { // (indirect,X)
   uint16_t eahelp;
   eahelp = (uint16_t)(((uint16_t)read6502(pc++) + (uint16_t)x) &
                       0xFF); // zero-page wraparound for table pointer
@@ -286,7 +285,7 @@ static void indx() { // (indirect,X)
        ((uint16_t)read6502((eahelp + 1) & 0x00FF) << 8);
 }
 
-static void indy() { // (indirect),Y
+static void indy(void) { // (indirect),Y
   uint16_t eahelp, eahelp2, startpage;
   eahelp = (uint16_t)read6502(pc++);
   eahelp2 = (eahelp & 0xFF00) | ((eahelp + 1) & 0x00FF); // zero-page wraparound
@@ -300,7 +299,7 @@ static void indy() { // (indirect),Y
   }
 }
 
-static uint16_t getvalue() {
+static uint16_t getvalue(void) {
   if (addrtable[opcode] == acc)
     return ((uint16_t)a);
   else
@@ -308,7 +307,7 @@ static uint16_t getvalue() {
 }
 
 /*
-static uint16_t getvalue16() {
+static uint16_t getvalue16(void) {
     return((uint16_t)read6502(ea) | ((uint16_t)read6502(ea+1) << 8));
 } */
 
@@ -320,7 +319,7 @@ static void putvalue(uint16_t saveval) {
 }
 
 // instruction hand_ler functions
-static void adc() {
+static void adc(void) {
   penaltyop = 1;
   value = getvalue();
   result = (uint16_t)a + value + (uint16_t)(status & FLAG_CARRY);
@@ -349,7 +348,7 @@ static void adc() {
   saveaccum(result);
 }
 
-static void and_() {
+static void and_(void) {
   penaltyop = 1;
   value = getvalue();
   result = (uint16_t)a & value;
@@ -360,7 +359,7 @@ static void and_() {
   saveaccum(result);
 }
 
-static void asl() {
+static void asl(void) {
   value = getvalue();
   result = value << 1;
 
@@ -371,7 +370,7 @@ static void asl() {
   putvalue(result);
 }
 
-static void bcc() {
+static void bcc(void) {
   if ((status & FLAG_CARRY) == 0) {
     oldpc = pc;
     pc += reladdr;
@@ -382,7 +381,7 @@ static void bcc() {
   }
 }
 
-static void bcs() {
+static void bcs(void) {
   if ((status & FLAG_CARRY) == FLAG_CARRY) {
     oldpc = pc;
     pc += reladdr;
@@ -393,7 +392,7 @@ static void bcs() {
   }
 }
 
-static void beq() {
+static void beq(void) {
   if ((status & FLAG_ZERO) == FLAG_ZERO) {
     oldpc = pc;
     pc += reladdr;
@@ -404,7 +403,7 @@ static void beq() {
   }
 }
 
-static void bit() {
+static void bit(void) {
   value = getvalue();
   result = (uint16_t)a & value;
 
@@ -412,7 +411,7 @@ static void bit() {
   status = (status & 0x3F) | (uint8_t)(value & 0xC0);
 }
 
-static void bmi() {
+static void bmi(void) {
   if ((status & FLAG_SIGN) == FLAG_SIGN) {
     oldpc = pc;
     pc += reladdr;
@@ -423,7 +422,7 @@ static void bmi() {
   }
 }
 
-static void bne() {
+static void bne(void) {
   if ((status & FLAG_ZERO) == 0) {
     oldpc = pc;
     pc += reladdr;
@@ -434,7 +433,7 @@ static void bne() {
   }
 }
 
-static void bpl() {
+static void bpl(void) {
   if ((status & FLAG_SIGN) == 0) {
     oldpc = pc;
     pc += reladdr;
@@ -445,7 +444,7 @@ static void bpl() {
   }
 }
 
-static void brk_() {
+static void brk_(void) {
   pc++;
   push16(pc);                 // push next instruction address onto stack
   push8(status | FLAG_BREAK); // push CPU status to stack
@@ -453,7 +452,7 @@ static void brk_() {
   pc = (uint16_t)read6502(0xFFFE) | ((uint16_t)read6502(0xFFFF) << 8);
 }
 
-static void bvc() {
+static void bvc(void) {
   if ((status & FLAG_OVERFLOW) == 0) {
     oldpc = pc;
     pc += reladdr;
@@ -464,7 +463,7 @@ static void bvc() {
   }
 }
 
-static void bvs() {
+static void bvs(void) {
   if ((status & FLAG_OVERFLOW) == FLAG_OVERFLOW) {
     oldpc = pc;
     pc += reladdr;
@@ -475,15 +474,15 @@ static void bvs() {
   }
 }
 
-static void clc() { clearcarry(); }
+static void clc(void) { clearcarry(); }
 
-static void cld() { cleardecimal(); }
+static void cld(void) { cleardecimal(); }
 
-static void cli() { clearinterrupt(); }
+static void cli(void) { clearinterrupt(); }
 
-static void clv() { clearoverflow(); }
+static void clv(void) { clearoverflow(); }
 
-static void cmp() {
+static void cmp(void) {
   penaltyop = 1;
   value = getvalue();
   result = (uint16_t)a - value;
@@ -501,7 +500,7 @@ static void cmp() {
   signcalc(result);
 }
 
-static void cpx() {
+static void cpx(void) {
   value = getvalue();
   result = (uint16_t)x - value;
 
@@ -518,7 +517,7 @@ static void cpx() {
   signcalc(result);
 }
 
-static void cpy() {
+static void cpy(void) {
   value = getvalue();
   result = (uint16_t)y - value;
 
@@ -535,7 +534,7 @@ static void cpy() {
   signcalc(result);
 }
 
-static void dec() {
+static void dec(void) {
   value = getvalue();
   result = value - 1;
 
@@ -545,21 +544,21 @@ static void dec() {
   putvalue(result);
 }
 
-static void dex() {
+static void dex(void) {
   x--;
 
   zerocalc(x);
   signcalc(x);
 }
 
-static void dey() {
+static void dey(void) {
   y--;
 
   zerocalc(y);
   signcalc(y);
 }
 
-static void eor() {
+static void eor(void) {
   penaltyop = 1;
   value = getvalue();
   result = (uint16_t)a ^ value;
@@ -570,7 +569,7 @@ static void eor() {
   saveaccum(result);
 }
 
-static void inc() {
+static void inc(void) {
   value = getvalue();
   result = value + 1;
 
@@ -580,28 +579,28 @@ static void inc() {
   putvalue(result);
 }
 
-static void inx() {
+static void inx(void) {
   x++;
 
   zerocalc(x);
   signcalc(x);
 }
 
-static void iny() {
+static void iny(void) {
   y++;
 
   zerocalc(y);
   signcalc(y);
 }
 
-static void jmp() { pc = ea; }
+static void jmp(void) { pc = ea; }
 
-static void jsr() {
+static void jsr(void) {
   push16(pc - 1);
   pc = ea;
 }
 
-static void lda() {
+static void lda(void) {
   penaltyop = 1;
   value = getvalue();
   a = (uint8_t)(value & 0x00FF);
@@ -610,7 +609,7 @@ static void lda() {
   signcalc(a);
 }
 
-static void ldx() {
+static void ldx(void) {
   penaltyop = 1;
   value = getvalue();
   x = (uint8_t)(value & 0x00FF);
@@ -619,7 +618,7 @@ static void ldx() {
   signcalc(x);
 }
 
-static void ldy() {
+static void ldy(void) {
   penaltyop = 1;
   value = getvalue();
   y = (uint8_t)(value & 0x00FF);
@@ -628,7 +627,7 @@ static void ldy() {
   signcalc(y);
 }
 
-static void lsr() {
+static void lsr(void) {
   value = getvalue();
   result = value >> 1;
 
@@ -643,7 +642,7 @@ static void lsr() {
   putvalue(result);
 }
 
-static void nop() {
+static void nop(void) {
   switch (opcode) {
   case 0x1C:
   case 0x3C:
@@ -656,7 +655,7 @@ static void nop() {
   }
 }
 
-static void ora() {
+static void ora(void) {
   penaltyop = 1;
   value = getvalue();
   result = (uint16_t)a | value;
@@ -667,20 +666,20 @@ static void ora() {
   saveaccum(result);
 }
 
-static void pha() { push8(a); }
+static void pha(void) { push8(a); }
 
-static void php() { push8(status | FLAG_BREAK); }
+static void php(void) { push8(status | FLAG_BREAK); }
 
-static void pla() {
+static void pla(void) {
   a = pull8();
 
   zerocalc(a);
   signcalc(a);
 }
 
-static void plp() { status = pull8() | FLAG_CONSTANT; }
+static void plp(void) { status = pull8() | FLAG_CONSTANT; }
 
-static void rol() {
+static void rol(void) {
   value = getvalue();
   result = (value << 1) | (status & FLAG_CARRY);
 
@@ -691,7 +690,7 @@ static void rol() {
   putvalue(result);
 }
 
-static void ror() {
+static void ror(void) {
   value = getvalue();
   result = (value >> 1) | ((status & FLAG_CARRY) << 7);
 
@@ -706,18 +705,18 @@ static void ror() {
   putvalue(result);
 }
 
-static void rti() {
+static void rti(void) {
   status = pull8();
   value = pull16();
   pc = value;
 }
 
-static void rts() {
+static void rts(void) {
   value = pull16();
   pc = value + 1;
 }
 
-static void sbc() {
+static void sbc(void) {
   penaltyop = 1;
   value = getvalue() ^ 0x00FF;
   result = (uint16_t)a + value + (uint16_t)(status & FLAG_CARRY);
@@ -747,49 +746,49 @@ static void sbc() {
   saveaccum(result);
 }
 
-static void sec() { setcarry(); }
+static void sec(void) { setcarry(); }
 
-static void sed() { setdecimal(); }
+static void sed(void) { setdecimal(); }
 
-static void sei() { setinterrupt(); }
+static void sei(void) { setinterrupt(); }
 
-static void sta() { putvalue(a); }
+static void sta(void) { putvalue(a); }
 
-static void stx() { putvalue(x); }
+static void stx(void) { putvalue(x); }
 
-static void sty() { putvalue(y); }
+static void sty(void) { putvalue(y); }
 
-static void tax() {
+static void tax(void) {
   x = a;
 
   zerocalc(x);
   signcalc(x);
 }
 
-static void tay() {
+static void tay(void) {
   y = a;
 
   zerocalc(y);
   signcalc(y);
 }
 
-static void tsx() {
+static void tsx(void) {
   x = sp;
 
   zerocalc(x);
   signcalc(x);
 }
 
-static void txa() {
+static void txa(void) {
   a = x;
 
   zerocalc(a);
   signcalc(a);
 }
 
-static void txs() { sp = x; }
+static void txs(void) { sp = x; }
 
-static void tya() {
+static void tya(void) {
   a = y;
 
   zerocalc(a);
@@ -798,12 +797,12 @@ static void tya() {
 
 // undocumented instructions
 #ifdef UNDOCUMENTED
-static void lax() {
+static void lax(void) {
   lda();
   ldx();
 }
 
-static void sax() {
+static void sax(void) {
   sta();
   stx();
   putvalue(a & x);
@@ -811,42 +810,42 @@ static void sax() {
     clockticks6502--;
 }
 
-static void dcp() {
+static void dcp(void) {
   dec();
   cmp();
   if (penaltyop && penaltyaddr)
     clockticks6502--;
 }
 
-static void isb() {
+static void isb(void) {
   inc();
   sbc();
   if (penaltyop && penaltyaddr)
     clockticks6502--;
 }
 
-static void slo() {
+static void slo(void) {
   asl();
   ora();
   if (penaltyop && penaltyaddr)
     clockticks6502--;
 }
 
-static void rla() {
+static void rla(void) {
   rol();
   and_();
   if (penaltyop && penaltyaddr)
     clockticks6502--;
 }
 
-static void sre() {
+static void sre(void) {
   lsr();
   eor();
   if (penaltyop && penaltyaddr)
     clockticks6502--;
 }
 
-static void rra() {
+static void rra(void) {
   ror();
   adc();
   if (penaltyop && penaltyaddr)
@@ -863,14 +862,14 @@ static void rra() {
 #define rra nop
 #endif
 
-void nmi6502() {
+void nmi6502(void) {
   push16(pc);
   push8(status);
   status |= FLAG_INTERRUPT;
   pc = (uint16_t)read6502(0xFFFA) | ((uint16_t)read6502(0xFFFB) << 8);
 }
 
-void irq6502() {
+void irq6502(void) {
   push16(pc);
   push8(status);
   status |= FLAG_INTERRUPT;
@@ -900,7 +899,7 @@ void exec6502(uint32_t tickcount) {
   }
 }
 
-void step6502() {
+void step6502(void) {
   opcode = read6502(pc++);
   status |= FLAG_CONSTANT;
 

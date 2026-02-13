@@ -18,20 +18,20 @@ extern window_t termwin;      // Window for the 6502 terminal
 extern window_t srcwin;       // Window for the assembly src currently being run
 
 // Function to setup display
-void DISPLAY_INITDISPLAY();
+extern void DISPLAY_INITDISPLAY(void);
 
 // Get a single character from console
 // No need to press return key
-char DISPLAY_CONSOLE_GETCHAR();
+extern char DISPLAY_CONSOLE_GETCHAR(void);
 
 // Echo a buffer to the console
-void DISPLAY_CONSOLE_ECHO(const char *fmt, ...);
+extern void DISPLAY_CONSOLE_ECHO(const char *fmt, ...);
 
 // Get the next command from the console
-void DISPLAY_CONSOLE_GETCMD(char *buf, size_t bufsiz);
+extern void DISPLAY_CONSOLE_GETCMD(char *buf, size_t bufsiz);
 
 // Put a character at cursor location at terminal
-void DISPLAY_TERMINAL_PUTCHAR(char c);
+extern void DISPLAY_TERMINAL_PUTCHAR(char c);
 
 // Get non-blocking input from terminal
-char DISPLAY_TERMINAL_GETCHAR();
+extern char DISPLAY_TERMINAL_GETCHAR(void);

@@ -17,30 +17,30 @@ extern int signal_;          // G// Address of the Interface Status Registerloba
 // oid initTerminal();
 
 // Creates debugger window with ncurses
-extern void initDbg();
+extern void initDbg(void);
 
 // Deallocates any data and ensures a clean exit
-extern void cleanUpDbg();
+extern void cleanUpDbg(void);
 
 // Basically reinitializes the debugger without intializing ncurses
 // Breakpoints remain
 // processor is resetted
-extern void resetDbg();
+extern void resetDbg(void);
 
 // Send a keyhit to UART and cause interrupt
 extern void sendToUart(uint8_t k);
 
 // Function to read from the uart when b0 ixReg flag is set
-extern uint8_t readFromUart();
+extern uint8_t readFromUart(void);
 
 // Run the 6502 instructions asynchronously
-extern int runContinuous();
+extern int runContinuous(void);
 
 // Run the debugger
-extern void runDebugger();
+extern void runDebugger(void);
 
 // Display the help
-extern void displayHelp();
+extern void displayHelp(void);
 
 // Decode the instruction current pc is at into assembly
 extern void disassembleInstrs(char *cmdtoks[], size_t cmdtoksiz);
@@ -49,25 +49,25 @@ extern void disassembleInstrs(char *cmdtoks[], size_t cmdtoksiz);
 extern void addNewBreakpoint(char *cmdtoks[], size_t cmdtoksiz);
 
 // Handles runContinuous command
-extern void runDebuggerContinuous();
+extern void runDebuggerContinuous(void);
 
 // List all the breakpoints currently set
-extern void listAllBreakpoints();
+extern void listAllBreakpoints(void);
 
 // Print memory contents
 extern void printMemRange(char *cmdtoks[], size_t cmdtoklen);
 
 // Show register contents
-extern void printRegisters();
+extern void printRegisters(void);
 
 // Chekc if 6502 program called for exit
-extern bool progExited();
+extern bool progExited(void);
 
 // Step the 6502 for given number of steps
 extern void performStep(char *cmdtoks[], size_t cmdtoksize);
 
 // Perform all interfacing checks and returns the signal for the action performed
-extern int performChecks();
+extern int performChecks(void);
 
 // Check if current pc is a breakpoint
 extern bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int* bpnum);
@@ -76,5 +76,5 @@ extern bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int* bpnum);
 //void putcharVGA(char c, window_t terminal);
 
 // Handle Ctrl+C signal when inside console/terminal
-extern void sigintHandlerTerminal();
-extern void sigintHandlerConsole();
+extern void sigintHandlerTerminal(int num);
+extern void sigintHandlerConsole(int num);

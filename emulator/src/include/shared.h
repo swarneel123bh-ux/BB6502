@@ -38,4 +38,4 @@ extern uint16_t ixReg;      // Address of the Interface Status Register
 extern void sendToUart(uint8_t k);
 
 // Function to read from the uart when b0 ixReg flag is set
-extern uint8_t readFromUart();
+extern uint8_t readFromUart(void);

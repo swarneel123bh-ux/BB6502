@@ -16,6 +16,8 @@ char *binfilename, *srcfilename, *dbgsymfilename;
 int uitype;
 struct termios oldt;
 int old_stdin_flags;
+struct vobj_symbol *dbgSymbols;
+int nofDbgSymbols;
 
 void parseCmdLineArgs(int argc, char **argv) {
   if (argc < 2) {
@@ -161,7 +163,7 @@ void setBreakpoint(uint16_t addr, char symbol[MAX_SYMBOL_LENGTH]) {
   // Write symbol if valid
   bpList[nBreakpoints].symbol =
       (char *)malloc(sizeof(char) * MAX_SYMBOL_LENGTH);
-  strncpy(bpList[nBreakpoints].symbol, symbol, MAX_SYMBOL_LENGTH-1);
+  strncpy(bpList[nBreakpoints].symbol, symbol, MAX_SYMBOL_LENGTH - 1);
   dbgSymbols[nBreakpoints++].symbolname[strlen(symbol)] =
       0; // append 0 at the end of the symbol name
   return;

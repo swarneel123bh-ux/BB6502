@@ -91,7 +91,7 @@ uint16_t read_hex_u16(void);
 void showmem(uint16_t startaddr, uint16_t endaddr);
 
 // Get asynchronous key input from the user
-int getKeyAsync();
+int getKeyAsync(void);
 
 // Termios data
 extern struct termios oldt;
@@ -101,13 +101,13 @@ extern int old_stdin_flags;
 void setupTerminal(void);
 
 // Restore the terminal to old mode before exiting program
-void restoreTerminal();
+void restoreTerminal(void);
 
 // Dropack handler
 // For C23 standard we need to define the fucntion such that it takes 1 integer
 // arg We arent using this anywhere yet
 // Function to get character sync-ly without messing up the stdin buffer
-int getCharacter();
+int getCharacter(void);
 
 // Function to get a whole line
 int getLine(char *linebuf, size_t linebufsiz);

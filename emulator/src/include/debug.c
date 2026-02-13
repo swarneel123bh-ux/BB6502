@@ -25,23 +25,23 @@ uint16_t uartInReg;
 uint16_t uartOutReg;
 uint16_t ixReg;
 breakpoint *bpList;
-int nofDbgSymbols;
-struct vobj_symbol *dbgSymbols;
 
-void sigintHandlerTerminal() {
+void sigintHandlerTerminal(int num) {
   signal_ = SIG_INTERRUPT_TERMINAL;
   signal(SIGINT, SIG_DFL); // Reset the sigint to quit
   DISPLAY_CONSOLE_ECHO("\tSIG_INTERRUPT_TERMINAL\n");
   return;
 }
 
-void sigintHandlerConsole() {}
+void sigintHandlerConsole(int num) {
+  return;
+}
 
 // Definitions required for the fake6502 emulator
 uint8_t read6502(uint16_t address) { return MEM6502[address]; }
 void write6502(uint16_t address, uint8_t value) { MEM6502[address] = value; }
 
-void cleanUpDbg() {
+void cleanUpDbg(void) {
   free(MEM6502);
   for (int i = 0; i < nBreakpoints; i++) {
     if (bpList[i].symbol)
@@ -52,7 +52,7 @@ void cleanUpDbg() {
   endwin();
 }
 
-void initDbg() {
+void initDbg(void) {
   FILE *f = fopen(binfilename, "rb");
   if (!f) {
     fprintf(stderr, "Failed to open file %s: ", binfilename);
@@ -95,10 +95,13 @@ void initDbg() {
   currentlyAtBp = false;
   insideTerminal = false;
 
+  memcpy(buf, 0, sizeof(buf));
+  signal_ = SIG_NOSIG;
+
   return;
 }
 
-void resetDbg() {
+void resetDbg(void) {
   reset6502();
   write6502(ixReg, 0x00);
   DISPLAY_CONSOLE_ECHO("\n");
@@ -108,7 +111,7 @@ void resetDbg() {
   return;
 }
 
-void runDebugger() {
+void runDebugger(void) {
 
   resetDbg();
   while (dbgRunning) {
@@ -174,14 +177,14 @@ void sendToUart(uint8_t k) {
   irq6502();
 }
 
-uint8_t readFromUart() {
+uint8_t readFromUart(void) {
   uint8_t r = read6502(uartOutReg);
   write6502(ixReg,
             read6502(ixReg) & 0xFE); // Clear b0 to allow further put_c calls
   return r;
 }
 
-void displayHelp() {
+void displayHelp(void) {
   DISPLAY_CONSOLE_ECHO("Help : -\n");
   DISPLAY_CONSOLE_ECHO(
       "b [./addr/symbol]: Create a breakpoint at [curr instr/addr/symbol]\n");
@@ -253,7 +256,7 @@ void addNewBreakpoint(char *cmdtoks[], size_t cmdtoksiz) {
   return;
 }
 
-void listAllBreakpoints() {
+void listAllBreakpoints(void) {
 
   if (nBreakpoints <= 0) {
     DISPLAY_CONSOLE_ECHO("		No breakpoints set\n");
@@ -320,13 +323,13 @@ void printMemRange(char *cmdtoks[], size_t cmdtoklen) {
   return;
 }
 
-void printRegisters() {
+void printRegisters(void) {
   DISPLAY_CONSOLE_ECHO(
       "PC=%04hx SP=%04hx A=%04hx X=%04hx Y=%04hx status=%04hx\n", pc, sp, a, x,
       y, status);
 }
 
-int performChecks() {
+int performChecks(void) {
   if (read6502(ixReg) & 0x80) {
     return SIG_PROGRAM_EXITED;
   }
@@ -364,7 +367,7 @@ bool checkIfAtBreakpoint(uint16_t pc, int instrlen, int *bpNum) {
   return false;
 }
 
-int runContinuous() {
+int runContinuous(void) {
   signal(SIGINT, sigintHandlerTerminal);
 
   int atBreakpoint = -1;
@@ -410,7 +413,7 @@ int runContinuous() {
   return atBreakpoint;
 }
 
-void runDebuggerContinuous() {
+void runDebuggerContinuous(void) {
   noecho();
   signal_ = SIG_NOSIG;
   DISPLAY_CONSOLE_ECHO("\n\tGoing into continuous execution\n");

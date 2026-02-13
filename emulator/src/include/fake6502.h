@@ -196,18 +196,18 @@ extern void write6502(uint16_t address, uint8_t value);
 // a few general functions used by various other functions
 extern void push16(uint16_t pushval);
 extern void push8(uint8_t pushval);
-extern uint16_t pull16();
-extern uint8_t pull8();
-extern void reset6502();
+extern uint16_t pull16(void);
+extern uint8_t pull8(void);
+extern void reset6502(void);
 
 extern uint8_t penaltyop, penaltyaddr;
 
 
-extern void nmi6502();
-extern void irq6502();
+extern void nmi6502(void);
+extern void irq6502(void);
 extern uint8_t callexternal;
-extern void (*loopexternal)();
+extern void (*loopexternal)(void);
 
 extern void exec6502(uint32_t tickcount);
-extern void step6502();
+extern void step6502(void);
 extern void hookexternal(void *funcptr);

@@ -8,7 +8,7 @@ window_t termwin;      // Window for the 6502 terminal
 window_t srcwin;       // Window for the assembly src currently being run
 
 // Macro to setup display
-void DISPLAY_INITDISPLAY() {
+void DISPLAY_INITDISPLAY(void) {
   initscr();
   keypad(stdscr, TRUE);
   cbreak();
@@ -56,7 +56,7 @@ void DISPLAY_INITDISPLAY() {
 
 // Get a single character from console
 // No need to press return key
-char DISPLAY_CONSOLE_GETCHAR() {
+char DISPLAY_CONSOLE_GETCHAR(void) {
   return wgetch(dbgwin.win);
 }
 
@@ -82,6 +82,6 @@ void DISPLAY_TERMINAL_PUTCHAR(char c) {
 }
 
 // Get non-blocking input from terminal
-char DISPLAY_TERMINAL_GETCHAR() {
+char DISPLAY_TERMINAL_GETCHAR(void) {
   return wgetch(termwin.win);
 }
