@@ -1,0 +1,6 @@
+emulator/tests/vasm
+emulator/tests/vobjdump
+emulator/debug
+emulator/test
+emulator/build/*
+emulator/tests/build/*
