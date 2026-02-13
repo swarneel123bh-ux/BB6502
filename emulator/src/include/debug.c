@@ -95,7 +95,7 @@ void initDbg(void) {
   currentlyAtBp = false;
   insideTerminal = false;
 
-  memcpy(buf, 0, sizeof(buf));
+  memset(buf, 0, sizeof(buf));
   signal_ = SIG_NOSIG;
 
   return;

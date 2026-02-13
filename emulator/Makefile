@@ -41,7 +41,7 @@ endif
 # ==================================================
 # Common Flags
 # ==================================================
-CFLAGS   := -std=c23 -O2 -I$(INC_DIR) -DHOST_OS_$(shell echo $(HOST_OS) | tr a-z A-Z) -fno-common -Wall -Werror -Wpedantic -pedantic
+CFLAGS   := -std=c2x -O2 -I$(INC_DIR) -DHOST_OS_$(shell echo $(HOST_OS) | tr a-z A-Z) -fno-common -Wall -Werror -Wpedantic -pedantic
 DBGFLAGS := -g3 -O0
 
 
