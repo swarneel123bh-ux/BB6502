@@ -1,0 +1,202 @@
+Sections:
+section .text (attr=<acrx> align=1):
+       0: opts: dp=0000 a=8 x=8
+       0: space(8192,fill=00)
+section org0001:2000 (attr=<acrwx> align=1):
+    2000: opts: dp=0000 a=8 x=8
+    2000: symbol: _main EXPR(8192=0x2000) ABS 
+    2000: data(3): 20 56 80 
+    2003: data(3): 20 73 80 
+    2006: data(3): 4c 24 80 
+    2009: symbol: _main_end EXPR(8201=0x2009) UNUSED ABS 
+section org0002:8000 (attr=<acrwx> align=1):
+    8000: opts: dp=0000 a=8 x=8
+    8000: symbol: reset EXPR(32768=0x8000) ABS 
+    8000: data(1): 78 
+    8001: data(1): d8 
+    8002: data(2): a2 ff 
+    8004: data(1): 9a 
+    8005: data(2): a9 a8 
+    8007: data(2): 85 00 
+    8009: data(2): a9 80 
+    800b: data(2): 85 01 
+    800d: data(3): 20 46 80 
+    8010: data(3): 4c 00 20 
+    8013: data(2): a9 ba 
+    8015: data(2): 85 00 
+    8017: data(2): a9 80 
+    8019: data(2): 85 01 
+    801b: data(3): 20 46 80 
+    801e: data(3): 4c 2f 80 
+    8021: data(3): 4c 24 80 
+    8024: symbol: exit EXPR(32804=0x8024) ABS 
+    8024: data(3): ad 03 10 
+    8027: data(2): 09 80 
+    8029: data(3): 8d 03 10 
+    802c: symbol:  exit .wait EXPR(32812=0x802c) ABS 
+    802c: data(3): 4c 2c 80 
+    802f: symbol: hang EXPR(32815=0x802f) ABS 
+    802f: data(2): a9 d4 
+    8031: data(2): 85 00 
+    8033: data(2): a9 80 
+    8035: data(2): 85 01 
+    8037: data(3): 20 46 80 
+    803a: symbol: hang_ EXPR(32826=0x803a) ABS 
+    803a: data(3): 4c 3a 80 
+    803d: symbol: retctrl EXPR(32829=0x803d) UNUSED ABS 
+    803d: data(3): ad 03 10 
+    8040: data(2): 09 40 
+    8042: data(3): 8d 03 10 
+    8045: data(1): 60 
+    8046: symbol: puts EXPR(32838=0x8046) ABS 
+    8046: data(2): a0 00 
+    8048: symbol:  puts .loop EXPR(32840=0x8048) ABS 
+    8048: data(2): b1 00 
+    804a: data(2): f0 09 
+    804c: data(2): a2 00 
+    804e: data(3): 20 73 80 
+    8051: data(1): c8 
+    8052: data(3): 4c 48 80 
+    8055: symbol:  puts .done EXPR(32853=0x8055) ABS 
+    8055: data(1): 60 
+    8056: symbol: gets EXPR(32854=0x8056) ABS 
+    8056: data(2): a0 00 
+    8058: symbol:  gets .loop EXPR(32856=0x8058) ABS 
+    8058: data(3): 20 8a 80 
+    805b: data(2): a2 00 
+    805d: data(3): 20 73 80 
+    8060: data(2): c9 0a 
+    8062: data(2): f0 09 
+    8064: data(2): 91 00 
+    8066: data(1): c8 
+    8067: data(2): f0 03 
+    8069: data(3): 4c 58 80 
+    806c: symbol:  gets .loopback EXPR(32876=0x806c) ABS 
+    806c: data(1): 88 
+    806d: symbol:  gets .done EXPR(32877=0x806d) ABS 
+    806d: data(2): a9 00 
+    806f: data(2): 91 00 
+    8071: data(1): 98 
+    8072: data(1): 60 
+    8073: symbol: putc EXPR(32883=0x8073) ABS 
+    8073: data(1): 48 
+    8074: symbol:  putc .wait EXPR(32884=0x8074) ABS 
+    8074: data(3): ad 03 10 
+    8077: data(2): 29 01 
+    8079: data(2): d0 f9 
+    807b: data(1): 68 
+    807c: data(3): 8d 01 10 
+    807f: data(1): 48 
+    8080: data(3): ad 03 10 
+    8083: data(2): 09 01 
+    8085: data(3): 8d 03 10 
+    8088: data(1): 68 
+    8089: data(1): 60 
+    808a: symbol: getc EXPR(32906=0x808a) ABS 
+    808a: data(3): ad 03 10 
+    808d: data(2): 09 04 
+    808f: data(3): 8d 03 10 
+    8092: symbol:  getc .wait EXPR(32914=0x8092) ABS 
+    8092: data(3): ad 03 10 
+    8095: data(2): 29 02 
+    8097: data(2): f0 f9 
+    8099: data(3): ad 02 10 
+    809c: data(1): 48 
+    809d: data(3): ad 03 10 
+    80a0: data(2): 29 f9 
+    80a2: data(3): 8d 03 10 
+    80a5: data(1): 68 
+    80a6: data(1): 58 
+    80a7: data(1): 60 
+    80a8: symbol: msg_bios EXPR(32936=0x80a8) ABS 
+    80a8: data(15): 48 65 6c 6c 6f 20 66 72 6f 6d 20 42 49 4f 53 
+    80b7: data(1): 0d 
+    80b8: data(1): 0a 
+    80b9: space(1,fill=00)
+    80ba: symbol: msg_nomain EXPR(32954=0x80ba) ABS 
+    80ba: data(23): 4e 6f 20 5f 6d 61 69 6e 20 66 6f 75 6e 64 2c 20 65 78 69 74 69 6e 67 
+    80d1: data(1): 0d 
+    80d2: data(1): 0a 
+    80d3: space(1,fill=00)
+    80d4: symbol: msg_exit_fail EXPR(32980=0x80d4) ABS 
+    80d4: data(26): 46 61 69 6c 65 64 20 74 6f 20 65 78 69 74 2c 20 68 61 6e 67 69 6e 67 2e 2e 2e 
+    80ee: data(1): 0d 
+    80ef: data(1): 0a 
+    80f0: space(1,fill=00)
+    80f1: symbol: nmi EXPR(33009=0x80f1) ABS 
+    80f1: data(1): 40 
+    80f2: symbol: irq EXPR(33010=0x80f2) ABS 
+    80f2: data(1): 48 
+    80f3: data(1): 8a 
+    80f4: data(1): 48 
+    80f5: data(1): 98 
+    80f6: data(1): 48 
+    80f7: data(3): ad 00 10 
+    80fa: data(3): 8d 02 10 
+    80fd: data(3): ad 03 10 
+    8100: data(2): 09 02 
+    8102: data(3): 8d 03 10 
+    8105: data(1): 68 
+    8106: data(1): a8 
+    8107: data(1): 68 
+    8108: data(1): aa 
+    8109: data(1): 68 
+    810a: data(1): 40 
+section org0003:ffea (attr=<acrwx> align=1):
+    ffea: opts: dp=0000 a=8 x=8
+    ffea: symbol: uart_inreg_addr EXPR(65514=0xffea) UNUSED ABS 
+    ffea: data(2): 00 10 
+    ffec: symbol: uart_outreg_addr EXPR(65516=0xffec) UNUSED ABS 
+    ffec: data(2): 01 10 
+    ffee: symbol: ixflagreg_addr EXPR(65518=0xffee) UNUSED ABS 
+    ffee: data(2): 03 10 
+section org0004:fffa (attr=<acrwx> align=1):
+    fffa: opts: dp=0000 a=8 x=8
+    fffa: symbol: nmiv EXPR(65530=0xfffa) UNUSED ABS 
+    fffa: data(2): f1 80 
+    fffc: symbol: resetv EXPR(65532=0xfffc) UNUSED ABS 
+    fffc: data(2): 00 80 
+    fffe: symbol: irqv EXPR(65534=0xfffe) UNUSED ABS 
+    fffe: data(2): f2 80 
+Symbols:
+irqv EXPR(65534=0xfffe) UNUSED ABS 
+resetv EXPR(65532=0xfffc) UNUSED ABS 
+nmiv EXPR(65530=0xfffa) UNUSED ABS 
+ixflagreg_addr EXPR(65518=0xffee) UNUSED ABS 
+uart_outreg_addr EXPR(65516=0xffec) UNUSED ABS 
+uart_inreg_addr EXPR(65514=0xffea) UNUSED ABS 
+irq EXPR(33010=0x80f2) ABS 
+nmi EXPR(33009=0x80f1) ABS 
+ getc .wait EXPR(32914=0x8092) ABS 
+ putc .wait EXPR(32884=0x8074) ABS 
+ gets .loopback EXPR(32876=0x806c) ABS 
+ gets .done EXPR(32877=0x806d) ABS 
+getc EXPR(32906=0x808a) ABS 
+ gets .loop EXPR(32856=0x8058) ABS 
+ puts .done EXPR(32853=0x8055) ABS 
+ puts .loop EXPR(32840=0x8048) ABS 
+retctrl EXPR(32829=0x803d) UNUSED ABS 
+hang_ EXPR(32826=0x803a) ABS 
+msg_exit_fail EXPR(32980=0x80d4) ABS 
+ exit .wait EXPR(32812=0x802c) ABS 
+hang EXPR(32815=0x802f) ABS 
+msg_nomain EXPR(32954=0x80ba) ABS 
+puts EXPR(32838=0x8046) ABS 
+msg_bios EXPR(32936=0x80a8) ABS 
+reset EXPR(32768=0x8000) ABS 
+_main_end EXPR(8201=0x2009) UNUSED ABS 
+exit EXPR(32804=0x8024) ABS 
+putc EXPR(32883=0x8073) ABS 
+gets EXPR(32854=0x8056) ABS 
+_main EXPR(8192=0x2000) ABS 
+IPBUF EXPR(4352=0x1100) UNUSED EQU 
+IPWPTR EXPR(4101=0x1005) UNUSED EQU 
+IPRPTR EXPR(4100=0x1004) UNUSED EQU 
+IXFLAGREG EXPR(4099=0x1003) EQU 
+UARTSHADOW EXPR(4098=0x1002) EQU 
+UARTOUTREG EXPR(4097=0x1001) EQU 
+UARTINREG EXPR(4096=0x1000) EQU 
+STRPTR EXPR(0=0) EQU 
+__RPTCNT EXPR(-1=0xffffffff) INTERNAL 
+__VASM EXPR(0=0) INTERNAL 
+__UNIXFS EXPR(0=0) INTERNAL 

@@ -13,9 +13,6 @@ extern bool currentlyAtBp;
 extern char buf[100];
 extern int signal_;          // G// Address of the Interface Status Registerlobal signal tracker
 
-// Initializes 6502 terminal with ncurses and creates terminal window
-// oid initTerminal();
-
 // Creates debugger window with ncurses
 extern void initDbg(void);
 
