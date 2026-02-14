@@ -78,7 +78,7 @@ void DISPLAY_CONSOLE_GETCMD(char* buf, size_t bufsiz) {
 // Put a character at cursor location at terminal
 void DISPLAY_TERMINAL_PUTCHAR(char c) {
   waddch(termwin.win, (c == '\r') ? '\n' : c);
-  wrefresh(dbgwin.win);
+  wrefresh(termwin.win);
 }
 
 // Get non-blocking input from terminal

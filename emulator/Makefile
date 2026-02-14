@@ -22,50 +22,53 @@ endif
 # ==================================================
 ifeq ($(HOST_OS),linux)
     CC      := gcc
-    LLDB    := lldb
-    LDFLAGS := -lpthread -lncurses
+    LLDB    := gdb
+    SYS_LIBS := -lpthread -lncurses
 endif
 
 ifeq ($(HOST_OS),macos)
     CC      := gcc
     LLDB    := lldb
-    LDFLAGS := -lpthread -lncurses
+    SYS_LIBS := -lpthread -lncurses
 endif
 
 ifeq ($(HOST_OS),windows)
     CC      := x86_64-w64-mingw32-gcc
     LLDB    :=
-    LDFLAGS := -lws2_32 -lpthread
+    SYS_LIBS := -lws2_32
 endif
-
-# ==================================================
-# Common Flags
-# ==================================================
-CFLAGS   := -std=c2x -O2 -I$(INC_DIR) -DHOST_OS_$(shell echo $(HOST_OS) | tr a-z A-Z) -fno-common -Wall -Werror -Wpedantic -pedantic
-DBGFLAGS := -g3 -O0
-
-
-# ==================================================
-# Toolchain
-# ==================================================
-CC      := gcc
-LLDB    := lldb
-VASM    := tests/vasm
 
 # ==================================================
 # Directories
 # ==================================================
-# Emulator
 SRC_DIR := src
 INC_DIR := src/include
 BUILD   := build
 OBJ_DIR := $(BUILD)/obj
 BIN_DIR := $(BUILD)/bin
 
-# Tests
+OBJ_DIR_REL := $(OBJ_DIR)/release
+OBJ_DIR_DBG := $(OBJ_DIR)/debug
+
 TEST_DIR      := tests
 TEST_SRC_DIR  := $(TEST_DIR)/asmsrc
 TEST_BUILD    := $(TEST_DIR)/build
+
+# ==================================================
+# Flags
+# ==================================================
+CFLAGS_BASE := -std=c2x -I$(INC_DIR) -DHOST_OS_$(shell echo $(HOST_OS) | tr a-z A-Z) \
+               -fno-common -Wall -Werror -Wpedantic -pedantic
+
+CFLAGS_REL  := $(CFLAGS_BASE) -O2 -DNDEBUG
+CFLAGS_DBG  := $(CFLAGS_BASE) -g3 -O0 -fno-omit-frame-pointer
+
+LDFLAGS := $(SYS_LIBS)
+
+# ==================================================
+# Toolchain
+# ==================================================
+VASM := tests/vasm
 
 # ==================================================
 # Targets
@@ -76,35 +79,35 @@ TARGET_DBG  := $(BIN_DIR)/debug6502dbg
 # ==================================================
 # Sources
 # ==================================================
-# C sources
 SRCS := \
 	$(SRC_DIR)/main.c \
 	$(wildcard $(INC_DIR)/*.c)
 
-OBJS := $(SRCS:%.c=$(OBJ_DIR)/%.o)
+OBJS_REL := $(SRCS:%.c=$(OBJ_DIR_REL)/%.o)
+OBJS_DBG := $(SRCS:%.c=$(OBJ_DIR_DBG)/%.o)
 
-# Test sources
-ASM_SRCS := $(wildcard $(TEST_SRC_DIR)/*.s)
+# ==================================================
+# Test Sources (FIXED ORDER)
+# ==================================================
+ASM_SRCS  := $(wildcard $(TEST_SRC_DIR)/*.s)
 TEST_BINS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.out,$(ASM_SRCS))
 TEST_SYMS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.sym,$(ASM_SRCS))
 TEST_VOBJ := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.vobj,$(ASM_SRCS))
 
-
 # ==================================================
-# Flags
+# VASM Flags
 # ==================================================
-LDFLAGS  := -lpthread -lncurses
-
-# vasm flags
 VASM_ASM_FLAGS  := -Fbin  -dotdir -I$(TEST_SRC_DIR)/utils
 VASM_SYM_FLAGS  := -dotdir -I$(TEST_SRC_DIR)/utils
 VASM_VOBJ_FLAGS := -Fvobj -dotdir -I$(TEST_SRC_DIR)/utils
 
-
 # ==================================================
 # Phony Targets
 # ==================================================
-.PHONY: all release debug clean dirs tests test run_test run_debug scripts native linux macos windows
+.PHONY: all release debug build_release build_debug clean dirs \
+        tests test tests-bin tests-sym tests-vobj \
+        run_test run_debug scripts gen_test_script gen_debug_script \
+        native linux macos windows
 
 # ==================================================
 # OS Entry Points
@@ -122,64 +125,66 @@ macos:
 windows:
 	@$(MAKE) HOST_OS=windows all
 
-
-
 # ==================================================
 # Default
 # ==================================================
 all: release test debug scripts
 
-
 # ==================================================
 # Directory Setup
 # ==================================================
 dirs:
-	mkdir -p $(OBJ_DIR)/$(SRC_DIR)
-	mkdir -p $(OBJ_DIR)/$(INC_DIR)
+	mkdir -p $(OBJ_DIR_REL)/$(SRC_DIR)
+	mkdir -p $(OBJ_DIR_REL)/$(INC_DIR)
+	mkdir -p $(OBJ_DIR_DBG)/$(SRC_DIR)
+	mkdir -p $(OBJ_DIR_DBG)/$(INC_DIR)
 	mkdir -p $(BIN_DIR)
 	mkdir -p $(TEST_BUILD)
-
 
 # ==================================================
 # Emulator Build
 # ==================================================
-# Release flags
-release: CFLAGS += -DNDEBUG
-release: dirs $(TARGET)
-# Debug flags
-debug: CFLAGS += $(DBGFLAGS)
-debug: dirs $(TARGET_DBG)
+release: build_release
+debug: build_debug
 
-# Build commands
-$(TARGET): $(OBJS)
+build_release: dirs $(TARGET)
+build_debug: dirs $(TARGET_DBG)
+
+$(TARGET): $(OBJS_REL)
 	$(CC) $^ $(LDFLAGS) -o $@
 
-$(TARGET_DBG): $(OBJS)
+$(TARGET_DBG): $(OBJS_DBG)
 	$(CC) $^ $(LDFLAGS) -o $@
 
-$(OBJ_DIR)/%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+# Compile rules
+$(OBJ_DIR_REL)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS_REL) -c $< -o $@
+
+$(OBJ_DIR_DBG)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS_DBG) -c $< -o $@
 
 # ==================================================
 # Test Build (VASM)
 # ==================================================
-# Build all asm outputs
 tests: tests-bin tests-sym tests-vobj
-
-# User-facing test command
 test: tests
+
 tests-bin:  $(TEST_BINS)
 tests-sym:  $(TEST_SYMS)
 tests-vobj: $(TEST_VOBJ)
 
-# Build commands
-$(TEST_BUILD)/%.out: $(TEST_SRC_DIR)/%.s | dirs
+$(TEST_BUILD)/%.out: $(TEST_SRC_DIR)/%.s
+	@mkdir -p $(TEST_BUILD)
 	$(VASM) $(VASM_ASM_FLAGS) -o $@ $<
 
-$(TEST_BUILD)/%.sym: $(TEST_SRC_DIR)/%.s | dirs
+$(TEST_BUILD)/%.sym: $(TEST_SRC_DIR)/%.s
+	@mkdir -p $(TEST_BUILD)
 	$(VASM) $(VASM_SYM_FLAGS) -Llo -o $@ $<
 
-$(TEST_BUILD)/%.vobj: $(TEST_SRC_DIR)/%.s | dirs
+$(TEST_BUILD)/%.vobj: $(TEST_SRC_DIR)/%.s
+	@mkdir -p $(TEST_BUILD)
 	$(VASM) $(VASM_VOBJ_FLAGS) -o $@ $<
 
 # ==================================================
@@ -196,19 +201,19 @@ else
 endif
 
 # ==================================================
-# Convenience Scripts
+# Scripts (FIXED NAME COLLISION)
 # ==================================================
-scripts: test debug
+scripts: gen_test_script gen_debug_script
 
-test:
-		@echo '#!/bin/sh'        >  test
-		@echo 'make run_test'   >> test
-		@chmod +x test
+gen_test_script:
+	@echo '#!/bin/sh'        > test
+	@echo 'make run_test'   >> test
+	@chmod +x test
 
-debug:
-		@echo '#!/bin/sh'        >  debug
-		@echo 'make run_debug'  >> debug
-		@chmod +x debug
+gen_debug_script:
+	@echo '#!/bin/sh'        > debug
+	@echo 'make run_debug'  >> debug
+	@chmod +x debug
 
 # ==================================================
 # Clean
@@ -216,5 +221,4 @@ debug:
 clean:
 	rm -rf $(BUILD)
 	rm -rf $(TEST_BUILD)
-	rm test
-	rm debug
+	rm -f test debug
