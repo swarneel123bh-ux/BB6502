@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <ncurses.h>
+#include <string.h>
 // Project includes
 #include "debugger.h"
 #include "vobjdump.h"
@@ -62,7 +63,7 @@ static char dbgConsoleGetchar(void);
 static void dbgConsoleEcho(const char *fmt, ...);
 static void dbgConsoleGetCmd(char *buf, size_t bufsiz);
 static void dbgTerminalPutchar(char c);
-static char dbgTerminalGetchar(void);
+static int dbgTerminalGetchar(void);
 static int dbgDisasmInstrFromPc(uint16_t pc, uint8_t (*read)(uint16_t), char *out);
 static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz);
 
@@ -140,6 +141,7 @@ void dbgCleanup(void) {
 	}
 	free(dbgBpList);
 	free(dbgSymbols);
+	endwin();
 	return;
 }
 
@@ -199,6 +201,8 @@ void dbgMainLoop(void) {
       break;
     }
   }
+
+  return;
 }
 
 static void dbgParseCmdLineArgs(int argc, char **argv) {
@@ -260,10 +264,13 @@ static void dbgParseCmdLineArgs(int argc, char **argv) {
 
 static uint16_t dbgReadHexU16(void) {
 	char buf[32];
+	memset(buf, 0, sizeof(buf));
   char *end;
-  unsigned long value;
+  unsigned long value = 0;
 
-  if (!fgets(buf, sizeof(buf), stdin)) {
+  dbgConsoleGetCmd(buf, sizeof(buf));
+
+  if (strlen(buf) == 0 || buf[0] == '\n' || buf[0] == 0) {
     dbgConsoleEcho("\tInput error\n");
     exit(EXIT_FAILURE);
   }
@@ -311,7 +318,7 @@ static void dbgReset(void) {
 }
 
 static void dbgSendToUart(uint8_t k) {
-	while (read6502(dbgIxReg & 0x01)) { }
+	while (read6502(dbgIxReg & 0x02)) { }
   write6502(dbgUartInReg, k);
   irq6502();
   return;
@@ -326,7 +333,7 @@ static uint8_t dbgReadFromUart(void) {
 static int dbgRunProgCont(void) {
 	signal(SIGINT, dbgSigintHandlerTerminal);
 
-  static int atBreakpoint = -1;
+  int atBreakpoint = -1;
   dbgInsideTerminal = true;
   while (dbgInsideTerminal) {
 
@@ -343,7 +350,7 @@ static int dbgRunProgCont(void) {
     }
 
     int k = dbgTerminalGetchar();
-    if (k != -1) dbgSendToUart(k);
+    if (k != -1) dbgSendToUart((uint8_t)k);
 
     int instrlen=0;
     char line[64];
@@ -441,8 +448,8 @@ static void dbgRunDbgCont(void) {
   dbgConsoleEcho("\n\tGoing into continuous execution\n");
   int brkpt = dbgRunProgCont();
   echo();
-
   dbgConsoleEcho("\n\tBack into debugger\n");
+
   if (dbgSignal == SIG_PROGRAM_EXITED) {
     dbgConsoleEcho("\n\tProgram exited. Restart/Exit? [r/E] :");
     int c = dbgConsoleGetchar();
@@ -505,9 +512,14 @@ static void dbgPrintMemRange(char *cmdtoks[], size_t cmdtoklen) {
   }
 
   // Start addr given but stop addr not given
-  if (cmdtoklen < 3) {
+  if (cmdtoklen == 2) {
     char* end_;
+    errno = 0;
     startAddr = strtoul(cmdtoks[1], &end_, 0);
+    if (errno != 0 || end_ == cmdtoks[1]) {
+      dbgConsoleEcho("Invalid hex number\n");
+      return;
+    }
     dbgConsoleEcho("Give the ending address in hex [0x...]: ");
     endAddr = dbgReadHexU16();
     dbgShowMem(startAddr, endAddr);
@@ -517,6 +529,23 @@ static void dbgPrintMemRange(char *cmdtoks[], size_t cmdtoklen) {
     }
     return;
   }
+
+  // Both addresses given
+  char* end_, *end__;
+  startAddr = strtoul(cmdtoks[1], &end_, 0);
+  errno = 0;
+  if (errno != 0 || end__ == cmdtoks[1]) {
+    dbgConsoleEcho("Invalid hex number\n");
+    return;
+  }
+  endAddr = strtoul(cmdtoks[2], &end__, 0);
+  errno = 0;
+  if (errno != 0 || end__ == cmdtoks[1]) {
+    dbgConsoleEcho("Invalid hex number\n");
+    return;
+  }
+  dbgShowMem(startAddr, endAddr);
+  return;
 }
 
 static void dbgPrintRegisters(void) {
@@ -566,20 +595,23 @@ static void dbgStep6502(char *cmdtoks[], size_t cmdtoksize) {
 }
 
 static int dbgPerformChecks(void) {
-	if (read6502(dbgIxReg) & 0x80) {
+
+  uint8_t res = read6502(dbgIxReg);
+
+	if (res & 0x80) {
     return SIG_PROGRAM_EXITED;
   }
 
-  if (read6502(dbgIxReg) & 0x40) {
+  if (res & 0x40) {
     return SIG_CONTROL_RETURNED;
   }
 
-  if (read6502(dbgIxReg) & 0x01) {
+  if (res & 0x01) {
     dbgTerminalPutchar(dbgReadFromUart());
     return SIG_TEXTOUT;
   }
 
-  if (read6502(dbgIxReg) & 0x20) {
+  if (res & 0x20) {
     return SIG_VGAOUT;
   }
 
@@ -603,8 +635,10 @@ static bool dbgCheckIfAtBp(uint16_t pc, int instrlen, int *bpnum) {
 
 static void dbgSigintHandlerTerminal(int num) {
 	dbgSignal = SIG_INTERRUPT_TERMINAL;
+	dbgInsideTerminal = false;
   signal(SIGINT, SIG_DFL); // Reset the sigint to quit
   dbgConsoleEcho("\tSIG_INTERRUPT_TERMINAL\n");
+  signal(SIGINT, dbgSigintHandlerConsole);
   return;
 }
 
@@ -973,17 +1007,17 @@ static void dbgConsoleEcho(const char *fmt, ...) {
 static void dbgConsoleGetCmd(char *buf, size_t bufsiz) {
 	dbgConsoleEcho(">>");
   wgetnstr(dbgDbgWin.win, buf, bufsiz);
+  wrefresh(dbgDbgWin.win);
   return;
 }
 
 static void dbgTerminalPutchar(char c) {
 	waddch(dbgTermWin.win, (c == '\r') ? '\n' : c);
-  wrefresh(dbgTermWin.win);
   return;
 }
 
-static char dbgTerminalGetchar(void) {
-	return wgetch(dbgTermWin.win);
+static int dbgTerminalGetchar(void) {
+  return (int)wgetch(dbgTermWin.win);
 }
 
 static int dbgDisasmInstrFromPc(uint16_t pc, uint8_t (*read)(uint16_t), char *out) {
