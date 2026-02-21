@@ -1,6 +1,10 @@
 #pragma once
 
-#include <ncurses.h>
+#ifdef HOST_OS_WINDOWS
+  #include <ncurses/ncurses.h>
+#else
+  #include <ncurses.h>
+#endif
 
 // Enum to represent all possible commands
 typedef enum {

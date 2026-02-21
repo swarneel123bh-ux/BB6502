@@ -7,7 +7,11 @@
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
-#include <ncurses.h>
+#ifdef HOST_OS_WINDOWS
+  #include <ncurses/ncurses.h>
+#else
+  #include <ncurses.h>
+#endif
 #include <string.h>
 // Project includes
 #include "debugger.h"
@@ -89,6 +93,11 @@ void write6502(uint16_t address, uint8_t value) {
 }
 
 void dbgInit(int argc, char** argv) {
+  memset(dbgCmdBuf, 0, sizeof(dbgCmdBuf));
+  dbgBinFileName = NULL;
+  dbgSrcFileName = NULL;
+  dbgSymFileName = NULL;
+  dbgSignal = SIG_NOSIG;
 	dbgParseCmdLineArgs(argc, argv);
 
 	FILE* f = fopen(dbgBinFileName, "rb");
@@ -339,6 +348,7 @@ static int dbgRunProgCont(void) {
 
     if (dbgSignal == SIG_INTERRUPT_TERMINAL) {
       dbgInsideTerminal = false;
+      dbgSignal = SIG_NOSIG;
       break;
     }
 
@@ -362,9 +372,11 @@ static int dbgRunProgCont(void) {
       continue;
     }
 
-    int bpnum;
+    int bpnum = -1;
     if (dbgCheckIfAtBp(pc, instrlen, &bpnum)) {
       atBreakpoint = bpnum;
+      dbgInsideTerminal = false;
+      dbgCurrentlyAtBp = true;
       break;
     }
 
@@ -424,7 +436,7 @@ static void dbgAddBp(char **cmdtoks, size_t cmdtoksiz) {
   if (dbgStrStartsWith("0x", cmdtoks[1])) { // Addr given
     char *end;
     uint16_t bp = strtoul(cmdtoks[1], &end, 0);
-    dbgConsoleEcho("  Setting new breakpoint at 0x%04hx\n", bp);
+    dbgConsoleEcho("\tSetting new breakpoint at 0x%04hx\n", bp);
     dbgSetBp(bp, NULL);
     return;
   }
@@ -432,7 +444,7 @@ static void dbgAddBp(char **cmdtoks, size_t cmdtoksiz) {
   // Symbol given
   for (int i = 0; i < dbgNofSyms; i++) {
     if (strcmp(cmdtoks[1], dbgSymbols[i].symbolname) == 0) {
-      dbgConsoleEcho( "  Setting new breakpoint at name=%s, addr=0x%04hx\n", dbgSymbols[i].symbolname, BPTMASK(dbgSymbols[i].val));
+      dbgConsoleEcho( "\tSetting new breakpoint at name=%s, addr=0x%04hx\n", dbgSymbols[i].symbolname, BPTMASK(dbgSymbols[i].val));
       dbgSetBp((uint16_t)dbgSymbols[i].val, dbgSymbols[i].symbolname);
       return;
     }
@@ -465,7 +477,7 @@ static void dbgRunDbgCont(void) {
     char buf[32];
     memset(buf, 0, sizeof(buf));
     dbgDisasmInstrFromPc(pc, read6502, buf);
-    dbgConsoleEcho("  Breakpoint [%d]:%s at addr %04hx: %s\n", brkpt, (dbgBpList[brkpt].hasSymbol) ? dbgBpList[brkpt].symbol : "", dbgBpList[brkpt].address, buf);
+    dbgConsoleEcho("\tBreakpoint [%d]:%s at addr %04hx: %s\n", brkpt, (dbgBpList[brkpt].hasSymbol) ? dbgBpList[brkpt].symbol : "", dbgBpList[brkpt].address, buf);
     dbgCurrentlyAtBp = true;
   }
 
@@ -475,7 +487,7 @@ static void dbgRunDbgCont(void) {
 static void dbgListBps(void) {
 
   if (dbgNofBps <= 0) {
-    dbgConsoleEcho("		No breakpoints set\n");
+    dbgConsoleEcho("\tNo breakpoints set\n");
     return;
   }
 
@@ -483,8 +495,8 @@ static void dbgListBps(void) {
     char line[64];
     memset(line, 0, sizeof(line));
     dbgDisasmInstrFromPc(dbgBpList[i].address, read6502, line);
-    if (dbgBpList[i].symbol) {
-      dbgConsoleEcho("\t%s: 0x%04hx\t%s\n", dbgBpList[i].symbol, dbgBpList[i].address, line);
+    if (dbgBpList[i].hasSymbol) {
+      dbgConsoleEcho("\t%s:\t0x%04hx\t%s\n", dbgBpList[i].symbol, dbgBpList[i].address, line);
     } else {
       dbgConsoleEcho("\t\t0x%04hx\t%s\n", dbgBpList[i].address, line);
     }
@@ -572,7 +584,7 @@ static void dbgStep6502(char *cmdtoks[], size_t cmdtoksize) {
     instrlen = dbgDisasmInstrFromPc(pc, read6502, line);
 
     if (dbgCurrentlyAtBp) {
-      dbgConsoleEcho("  Stepping through breakpoint...\n");
+      dbgConsoleEcho("\tStepping through breakpoint...\n");
       dbgConsoleEcho("\t%04hx\t%s\n", pc, line);
       step6502();
       dbgCurrentlyAtBp = false;
@@ -582,7 +594,8 @@ static void dbgStep6502(char *cmdtoks[], size_t cmdtoksize) {
 
     int bpNum = -1;
     if (dbgCheckIfAtBp(pc, instrlen, &bpNum)) {
-      dbgConsoleEcho("  At Breakpoint [%d] %s: %04hx   %s\n", (dbgBpList[bpNum].symbol) ? dbgBpList[bpNum].symbol : "", bpNum, pc, line);
+      dbgConsoleEcho("\tAt Breakpoint [%d] %s: %04hx   %s\n", bpNum,
+      (dbgBpList[bpNum].hasSymbol) ? dbgBpList[bpNum].symbol : "", pc, line);
       dbgCurrentlyAtBp = true;
       return;
     }
@@ -638,7 +651,6 @@ static void dbgSigintHandlerTerminal(int num) {
 	dbgInsideTerminal = false;
   signal(SIGINT, SIG_DFL); // Reset the sigint to quit
   dbgConsoleEcho("\tSIG_INTERRUPT_TERMINAL\n");
-  signal(SIGINT, dbgSigintHandlerConsole);
   return;
 }
 
@@ -697,13 +709,15 @@ static void dbgSetBp(uint16_t addr, char symbol[MAX_SYMBOL_LENGTH]) {
   // Check if a valid symbol is given
   if (!symbol) {
     dbgBpList[dbgNofBps].symbol = NULL;
+    dbgBpList[dbgNofBps].hasSymbol = false;
     dbgNofBps++;
     return;
   }
 
   // Write symbol if valid
-  dbgBpList[dbgNofBps].symbol = (char *)malloc(sizeof(char) * MAX_SYMBOL_LENGTH);
+  dbgBpList[dbgNofBps].symbol = (char *)calloc(MAX_SYMBOL_LENGTH, sizeof(char));
   strncpy(dbgBpList[dbgNofBps].symbol, symbol, MAX_SYMBOL_LENGTH - 1);
+  dbgBpList[dbgNofBps].hasSymbol = true;
   dbgSymbols[dbgNofBps++].symbolname[strlen(symbol)] = 0;
   return;
 }

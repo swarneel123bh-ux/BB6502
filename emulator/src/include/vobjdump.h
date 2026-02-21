@@ -110,3 +110,66 @@ extern const char *def_name(struct vobj_symbol *vs, struct vobj_section *sec,
 extern struct vobj_symbol *vobjdump(int *nsyms);
 
 extern size_t filesize(FILE *fp, const char *name);
+
+/*
+ * vobjdump
+ * Views the contents of a VOBJ file.
+ * Written by Frank Wille <frank@phoenix.owl.de>.
+ */
+
+/*
+  Format:
+
+  .byte 0x56,0x4f,0x42,0x4a
+  .byte flags
+    Bits 0-1:
+     1: BIGENDIAN
+     2: LITTLENDIAN
+    Bits 2-7:
+     VOBJ-Version (0-based)
+  .number bitsperbyte
+  .number bytespertaddr
+  .string cpu
+  .number nsections [1-based]
+  .number nsymbols [1-based]
+
+nsymbols
+  .string name
+  .number type
+  .number flags
+  .number secindex
+  .number val
+  .number size (in target-bytes)
+
+nsections
+  .string name
+  .string attr
+  .number flags
+  .number address [vobj version 3+ and flags&ABSOLUTE only]
+  .number align
+  .number size (in target-bytes)
+  .number nrelocs
+  .number databytes (in target-bytes)
+  .byte[databytes*(BITSPERBYTE+7)/8]
+
+nrelocs [standard|special]
+standard
+   .number type
+   .number byteoffset
+   .number bitoffset
+   .number size
+   .number mask
+   .number addend
+   .number symbolindex | 0 (sectionbase)
+
+special
+    .number type
+    .number size (0 means standard nreloc)
+    .byte[size]
+
+.number:[taddr]
+    .byte 0--127 [0--127]
+    .byte 128-191 [x-0x80 bytes little-endian], fill remaining with 0
+    .byte 192-255 [x-0xC0 bytes little-endian], fill remaining with 0xff [vobj
+version 2+]
+*/

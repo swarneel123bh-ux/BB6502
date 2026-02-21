@@ -1,66 +1,3 @@
-/*
- * vobjdump
- * Views the contents of a VOBJ file.
- * Written by Frank Wille <frank@phoenix.owl.de>.
- */
-
-/*
-  Format:
-
-  .byte 0x56,0x4f,0x42,0x4a
-  .byte flags
-    Bits 0-1:
-     1: BIGENDIAN
-     2: LITTLENDIAN
-    Bits 2-7:
-     VOBJ-Version (0-based)
-  .number bitsperbyte
-  .number bytespertaddr
-  .string cpu
-  .number nsections [1-based]
-  .number nsymbols [1-based]
-
-nsymbols
-  .string name
-  .number type
-  .number flags
-  .number secindex
-  .number val
-  .number size (in target-bytes)
-
-nsections
-  .string name
-  .string attr
-  .number flags
-  .number address [vobj version 3+ and flags&ABSOLUTE only]
-  .number align
-  .number size (in target-bytes)
-  .number nrelocs
-  .number databytes (in target-bytes)
-  .byte[databytes*(BITSPERBYTE+7)/8]
-
-nrelocs [standard|special]
-standard
-   .number type
-   .number byteoffset
-   .number bitoffset
-   .number size
-   .number mask
-   .number addend
-   .number symbolindex | 0 (sectionbase)
-
-special
-    .number type
-    .number size (0 means standard nreloc)
-    .byte[size]
-
-.number:[taddr]
-    .byte 0--127 [0--127]
-    .byte 128-191 [x-0x80 bytes little-endian], fill remaining with 0
-    .byte 192-255 [x-0xC0 bytes little-endian], fill remaining with 0xff [vobj
-version 2+]
-*/
-
 #include "vobjdump.h"
 
 int ver;      /* VOBJ version */
@@ -223,39 +160,18 @@ void read_symbol(struct vobj_symbol *vsym) {
 
 void read_section(struct vobj_section *vsect, struct vobj_symbol *vsym,
                   int nsyms) {
-  unsigned long flags;
+  //unsigned long flags;
 
   vsect->offs = p - vobj;
   vsect->name = (char *)p;
   skip_string();
-  // const char* attr = (char *)p;
   skip_string();
-  flags = (unsigned long)read_number(0);
+  (void)read_number(0);
 
-  // print_sep();
-  /* printf("%08llx: SECTION \"%s\" (attributes=\"%s\")", BPTMASK(vsect->offs),
-         vsect->name, attr); */
-  if (ver >= 3 && (flags & ABSOLUTE)) {
-  }
-  // printf(" @%llx\n", BPTMASK(read_number(0)));
-  else {
-  }
-  // putchar('\n');
-
-  // int align = (int)read_number(0);
+  (void)read_number(0);
   vsect->dsize = read_number(0);
   int nrelocs = (int)read_number(0);
   vsect->fsize = read_number(0);
-
-  /*
-  printf("Flags: %-8lx  Alignment: %-6d "
-         "Total size: %-9" PRId64 " File size: %-9" PRId64 "\n",
-         flags, align, vsect->dsize, vsect->fsize); */
-  // if (nrelocs) {
-  // }
-  /*
-  printf("%d Relocation%s present.\n", nrelocs,
-         nrelocs == 1 ? emptystr : sstr); */
 
   p += vsect->fsize * opb; /* skip section contents */
 
@@ -263,12 +179,6 @@ void read_section(struct vobj_section *vsect, struct vobj_symbol *vsym,
   for (int i = 0; i < nrelocs; i++) {
     int type;
     size_t len;
-
-    if (i == 0) {
-      /* print header */
-      // printf("\nfile offs sectoffs pos sz mask     type symbol+addend\n");
-    }
-    // printf("%08llx: ", BPTMASK(p - vobj));
 
     type = read_number(0);
     if (type >= FIRST_CPU_RELOC)
@@ -281,7 +191,7 @@ void read_section(struct vobj_section *vsect, struct vobj_symbol *vsym,
       taddr offs, mask, addend;
       int bpos, bsiz, sym;
 
-      if (type < FIRST_CPU_RELOC && STD_REL_TYPE(type) >= num_std_relocs) {
+      if ((type < FIRST_CPU_RELOC) && (STD_REL_TYPE(type) >= num_std_relocs)) {
         fprintf(stderr, "vobjdump: Illegal standard reloc type: %d\n", type);
         exit(1);
       }

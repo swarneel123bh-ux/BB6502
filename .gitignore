@@ -1,6 +1,9 @@
 emulator/tests/vasm
 emulator/tests/vobjdump
-emulator/debug
-emulator/test
-emulator/build/*
+emulator/tests/*.exe
+emulator/tests/*.bat
+emulator/tests/*.dll
 emulator/tests/build/*
+emulator/build/*
+emulator/test
+emulator/debug
