@@ -13,15 +13,8 @@ MODE            = $2B           ;  $00=XAM, $7F=STOR, $AE=BLOCK XAM
 
 
 ; Other Variables
-
 IN              = $0200         ;  Input buffer to $027F
-KBD             = $D010         ;  PIA.A keyboard input
-; UARTINREG				= $1000					;  UART Input register, basically kbd
-KBDCR           = $D011         ;  PIA.A keyboard control register
-DSP             = $D012         ;  PIA.B display output register
-; UARTOUTREG			= $1001					;  UART Output register, basically dsp
-DSPCR           = $D013         ;  PIA.B display control register
-; IXFLAGREG				= $1003					;  IXFLAG, basically combined DSPCR and KBDCR
-
-               ;.org $FF00
-               ;.export RESET
+KBD             = $1010         ;  PIA.A keyboard input
+KBDCR           = $1011         ;  PIA.A keyboard control register
+DSP             = $1012         ;  PIA.B display output register
+DSPCR           = $1013         ;  PIA.B display control register
