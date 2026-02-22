@@ -7,3 +7,4 @@ emulator/tests/build/*
 emulator/build/*
 emulator/test
 emulator/debug
+emulator/*.bat
