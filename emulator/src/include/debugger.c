@@ -546,7 +546,7 @@ static void dbgPrintMemRange(char *cmdtoks[], size_t cmdtoklen) {
   char* end_, *end__;
   startAddr = strtoul(cmdtoks[1], &end_, 0);
   errno = 0;
-  if (errno != 0 || end__ == cmdtoks[1]) {
+  if (errno != 0 || end_ == cmdtoks[1]) {
     dbgConsoleEcho("Invalid hex number\n");
     return;
   }
