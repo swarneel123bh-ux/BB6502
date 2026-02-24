@@ -8,4 +8,5 @@ emulator/build/*
 emulator/test
 emulator/debug
 emulator/*.bat
-./.*
+.*
+emulator/.*
