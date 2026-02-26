@@ -1,3 +1,4 @@
+  ; not implemented vga or floppy yet so we cannot test it right now
   .include vars.s
   .dsb $2000, 0
   .org $2000

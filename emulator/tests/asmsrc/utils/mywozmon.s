@@ -1,3 +1,5 @@
+; WOZMON for Apple II adapted to work with the breadboard computer
+; Currently only works on emulator since i dont have enough hardware yet
 WZMON:          LDY #$7F        ; Mask for DSP data direction register.
                 LDA #$A7        ; KBD and DSP control register mask.
 

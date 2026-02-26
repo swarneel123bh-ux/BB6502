@@ -637,7 +637,7 @@ static bool dbgCheckIfAtBp(uint16_t pc, int instrlen, int *bpnum) {
 
   for (int i = 0; i < dbgNofBps; i++) {
     if ((instrStartAddr <= dbgBpList[i].address) &&
-        (dbgBpList[i].address < instrEndAddr)) {
+        (dbgBpList[i].address <= instrEndAddr)) {
       *bpnum = i;
       return true;
     }
