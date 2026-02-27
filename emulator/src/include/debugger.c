@@ -130,6 +130,7 @@ void dbgInit(int argc, char** argv) {
 	dbgReadDbgSyms(dbgSymFileName);
 	dbgInitDisplay();
 	dbgConsoleEcho("Loading debug symbols from %s\n", dbgSymFileName);
+  dbgConsoleEcho("Loaded %d symbols\n", dbgNofSyms);
 	dbgConsoleEcho("uartInReg=%04hx\n", dbgUartInReg);
 	dbgConsoleEcho("uartOutReg=%04hx\n", dbgUartOutReg);
 	dbgConsoleEcho("dbgIxReg=%04hx\n", dbgIxReg);
@@ -450,6 +451,7 @@ static void dbgAddBp(char **cmdtoks, size_t cmdtoksiz) {
     }
   }
 
+  // dbgConsoleEcho("\tdbgNofSyms=%d\n", dbgNofSyms);
   dbgConsoleEcho("\tsymbol=%s not found!\n", cmdtoks[1]);
   return;
 }
@@ -783,19 +785,16 @@ static void dbgReadDbgSyms(const char *fname) {
   struct vobj_symbol *vsymbols = NULL;
   int nsymsRead;
   vsymbols = vobjdump(&nsymsRead); // Edited vobjdump function, see vobjdump.c
-  // printf("%p\n", (void *)vsymbols);
-  // printf("Read %d symbols from file %s\n", nsymsRead, fname);
   dbgNofSyms = 0;
 
   // Loop once to find out how many debug symbols exist
   for (int i = 0; i < nsymsRead; i++) {
+    dbgNofSyms++;
     struct vobj_symbol s = vsymbols[i];
-
     if (dbgStrStartsWith(".", s.name) || dbgStrStartsWith("org", s.name) ||
         dbgStrIsAllCaps(s.name))
       continue;
 
-    dbgNofSyms++;
   }
 
   // Allocate mem
@@ -804,12 +803,6 @@ static void dbgReadDbgSyms(const char *fname) {
   // Loop again to populate dbgSymbols
   for (int i = 0, k = 0; i < nsymsRead && k < dbgNofSyms; i++) {
     struct vobj_symbol s = vsymbols[i];
-
-    // Logic to determine if label goes here
-    if (dbgStrStartsWith(".", s.name) || dbgStrStartsWith("org", s.name) ||
-        dbgStrIsAllCaps(s.name))
-      continue;
-
     dbgSymbols[k] = s;
     strncpy(dbgSymbols[k].symbolname, s.name, MAX_SYMBOL_LENGTH - 1);
     dbgSymbols[k].symbolname[strlen(s.name)] = 0; // append 0 at the end of the symbol name
