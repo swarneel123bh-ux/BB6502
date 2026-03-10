@@ -190,14 +190,83 @@ getc:
   cli
   rts
 
+; ----------------------------------------------------------------------------------
+; FLOPPY DISK SUBROUTINES
+; NOTE: A sector is assumed to be 256 bytes long (whatever fits in 8 bits
+; i.e. a single page)
 
-; ------
+; ------------------------------
+; subroutine floppy_write
+; params: A register  = Number of sectors to write
+;         X register  = Address where the data to write resides
+;         Y register  = DMA Address for the data to be read from
+; desc: Sends floppyWrite request to emulator, and waits for irq (not really
+; since the program is single threaded meaning the irq is triggered immediately
+; from the 6502's perspective) (NEED TO CHANGE IT WHEN THREADED IMPLEMENTATION
+; IS DONE)
+; -----------------------------
+floppy_write:
+  pha
+
+  txa
+  sta FLPSECREG
+  tya
+  sta FLPDMAREG
+
+  lda IXFLAGREG
+  ora #$10
+  sta IXFLAGREG
+
+; DMA DOESNT NEED TO WAIT
+.wait:
+  lda IXFLAGREG
+  and #$10
+  bne .wait
+
+  pla
+  rts
+
+; ------------------------------
+; subroutine floppy_read
+; params: A register  = Number of sectors to read
+;         X register  = Address where the data is to be read into
+;         Y register  = DMA Address for the data to be read from
+; desc: Sends floppyRead request to emulator, and waits for irq (not really
+; since the program is single threaded meaning the irq is triggered immediately
+; from the 6502's perspective) (NEED TO CHANGE IT WHEN THREADED IMPLEMENTATION
+; IS DONE)
+; -----------------------------
+floppy_read:
+  pha
+
+  txa
+  sta FLPSECREG
+  tya
+  sta FLPDMAREG
+
+  lda IXFLAGREG
+  ora #$20
+  sta IXFLAGREG
+
+; DMA DOESNT NEED TO WAIT
+.wait:
+  lda IXFLAGREG
+  and #$20
+  bne .wait
+
+  pla
+  rts
+
+; ---------------------------------------------------------------------------------
 ; Bios messages
 ; ------
 msg_bios:       .asciiz "Hello from BIOS", $0d, $0a
 msg_nomain:     .asciiz "No _main found, exiting", $0d, $0a
 msg_exit_fail:  .asciiz "Failed to exit, hanging...", $0d, $0a
 
+
+; ----------------------------------------------------------------------------------
+; INTERRUPTS 
 
 ; ------
 ; Non-Maskable Interrupt hander
@@ -208,8 +277,7 @@ nmi:
 ; ------
 ; irq handler:
 ; params: None
-; desc: Loads into A register the byte received in UARTINREG and sets ixflagreg's b1 to
-; indicate that the byte has been read
+; desc: Loads IXFLAGREG into A register, checks bits for signals and does the required job
 ; ------
 irq:
   pha
@@ -218,25 +286,58 @@ irq:
   tya
   pha
 
-  lda UARTINREG
-  sta UARTSHADOW
+  ; If irq due to floppyRead() call
   lda IXFLAGREG
-  ora #%00000010  ; Indicate that UARTSHADOW has new bit
+  ora #%00100000      
+  bne .notFloppyRead   ; if b5 not set, then irq was not from a floppyRead() call
+  and #%11011111
   sta IXFLAGREG
-
   pla
   tay
   pla
   tax
   pla
+  rti
 
-  rti             ; Return from interrupt
+.notFloppyRead:
+  ; If irq due to floppyWrite() call
+  lda IXFLAGREG
+  ora #%00010000
+  bne .notFloppyWrite  ; if b4 not set, then irq was not from a floppyWrite() call
+  and #%11101111
+  sta IXFLAGREG
+  pla
+  tay
+  pla
+  tax
+  pla
+  rti
 
+.notFloppyWrite:
+  ; If irq due to sendToUart() call
+  lda IXFLAGREG
+  lda UARTINREG
+  sta UARTSHADOW
+  pla
+  tay
+  pla
+  tax
+  pla
+  rti
+
+
+; ----------------------------------------------------------------------------------
+; ROM TABLES
 
 ; ------
 ; Emulator required metadata
+; Later to be adapted into device table
 ; ------
-  .org $ffea
+  .org $ffe6
+floppy_dma_reg_addr:
+  .word FLPDMAREG  ; $ffe6 - $ffe7
+floppy_sector_count_reg_addr:
+  .word FLPSECREG  ; $ffe8 - $ffe9
 uart_inreg_addr:
   .word UARTINREG  ; $ffea - $ffeb
 uart_outreg_addr:

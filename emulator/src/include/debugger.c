@@ -328,8 +328,9 @@ static void dbgReset(void) {
 }
 
 static void dbgSendToUart(uint8_t k) {
-	while (read6502(dbgIxReg & 0x02)) { }
+	while (read6502(dbgIxReg) & 0x02) { } // Wait as long as bit 2 is set
   write6502(dbgUartInReg, k);
+  write6502(dbgIxReg, read6502(dbgIxReg) | 0x02); // Set bit 2 again
   irq6502();
   return;
 }

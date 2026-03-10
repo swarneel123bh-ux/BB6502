@@ -78,6 +78,9 @@ TEST_BINS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.out,$(ASM_SRCS))
 TEST_SYMS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.sym,$(ASM_SRCS))
 TEST_VOBJ := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.vobj,$(ASM_SRCS))
 
+# Include-only assembly helpers
+UTIL_SRCS := $(wildcard $(TEST_SRC_DIR)/utils/*.s)
+
 VASM_ASM_FLAGS  := -Fbin  -dotdir -I$(TEST_SRC_DIR)/utils
 VASM_SYM_FLAGS  := -dotdir -I$(TEST_SRC_DIR)/utils
 VASM_VOBJ_FLAGS := -Fvobj -dotdir -I$(TEST_SRC_DIR)/utils
@@ -108,15 +111,15 @@ $(OBJ_DBG)/%.o: %.c
 tests: $(TEST_BINS) $(TEST_SYMS) $(TEST_VOBJ)
 test: tests
 
-$(TEST_BUILD)/%.out: $(TEST_SRC_DIR)/%.s
+$(TEST_BUILD)/%.out: $(TEST_SRC_DIR)/%.s $(UTIL_SRCS)
 	$(call MKDIR_P,$(TEST_BUILD))
 	$(VASM) $(VASM_ASM_FLAGS) -o $@ $<
 
-$(TEST_BUILD)/%.sym: $(TEST_SRC_DIR)/%.s
+$(TEST_BUILD)/%.sym: $(TEST_SRC_DIR)/%.s $(UTIL_SRCS)
 	$(call MKDIR_P,$(TEST_BUILD))
 	$(VASM) $(VASM_SYM_FLAGS) -Llo -o $@ $<
 
-$(TEST_BUILD)/%.vobj: $(TEST_SRC_DIR)/%.s
+$(TEST_BUILD)/%.vobj: $(TEST_SRC_DIR)/%.s $(UTIL_SRCS)
 	$(call MKDIR_P,$(TEST_BUILD))
 	$(VASM) $(VASM_VOBJ_FLAGS) -o $@ $<
 
