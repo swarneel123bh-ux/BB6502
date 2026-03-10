@@ -198,8 +198,8 @@ getc:
 ; ------------------------------
 ; subroutine floppy_write
 ; params: A register  = Number of sectors to write
-;         X register  = Address where the data to write resides
-;         Y register  = DMA Address for the data to be read from
+;         Y register  = LBA Address in the floppy where the data to write goes
+;         X register  = DMA Address for the data to be read from for writing
 ; desc: Sends floppyWrite request to emulator, and waits for irq (not really
 ; since the program is single threaded meaning the irq is triggered immediately
 ; from the 6502's perspective) (NEED TO CHANGE IT WHEN THREADED IMPLEMENTATION
@@ -208,10 +208,13 @@ getc:
 floppy_write:
   pha
 
+  sta FLPSECREG	; store the number of sectors to write
+
   txa
-  sta FLPSECREG
+  sta FLPDMAREG ; store the DMA address to write data from
+
   tya
-  sta FLPDMAREG
+  sta FLPLBAREG	; store the LBA address of the sector
 
   lda IXFLAGREG
   ora #$10
@@ -229,8 +232,8 @@ floppy_write:
 ; ------------------------------
 ; subroutine floppy_read
 ; params: A register  = Number of sectors to read
-;         X register  = Address where the data is to be read into
-;         Y register  = DMA Address for the data to be read from
+;         Y register  = LBA Address in floppy from where the data will be read
+;         X register  = DMA Address for the data to be read into
 ; desc: Sends floppyRead request to emulator, and waits for irq (not really
 ; since the program is single threaded meaning the irq is triggered immediately
 ; from the 6502's perspective) (NEED TO CHANGE IT WHEN THREADED IMPLEMENTATION
@@ -239,10 +242,13 @@ floppy_write:
 floppy_read:
   pha
 
+  sta FLPSECREG	; store the number of sectors to write
+
   txa
-  sta FLPSECREG
+  sta FLPDMAREG ; store the DMA address to write data from
+
   tya
-  sta FLPDMAREG
+  sta FLPLBAREG	; store the LBA address of the sector
 
   lda IXFLAGREG
   ora #$20
@@ -266,7 +272,7 @@ msg_exit_fail:  .asciiz "Failed to exit, hanging...", $0d, $0a
 
 
 ; ----------------------------------------------------------------------------------
-; INTERRUPTS 
+; INTERRUPTS
 
 ; ------
 ; Non-Maskable Interrupt hander
@@ -288,7 +294,7 @@ irq:
 
   ; If irq due to floppyRead() call
   lda IXFLAGREG
-  ora #%00100000      
+  ora #%00100000
   bne .notFloppyRead   ; if b5 not set, then irq was not from a floppyRead() call
   and #%11011111
   sta IXFLAGREG
@@ -333,7 +339,9 @@ irq:
 ; Emulator required metadata
 ; Later to be adapted into device table
 ; ------
-  .org $ffe6
+  .org $ffe4
+floppy_lba_reg_addr:
+	.word FLPLBAREG  ; $ffe4 - $ffe5
 floppy_dma_reg_addr:
   .word FLPDMAREG  ; $ffe6 - $ffe7
 floppy_sector_count_reg_addr:

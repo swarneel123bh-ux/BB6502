@@ -1,5 +1,5 @@
 ; ------
-; All the program wide variables, to be included at the top of the 
+; All the program wide variables, to be included at the top of the
 ; file
 ; ------
 ; ---Zero Page----
@@ -10,8 +10,9 @@ UARTINREG   = $1000   ; UART Input register
 UARTOUTREG  = $1001   ; UART Output register
 UARTSHADOW  = $1002   ; UART Byte temp storage
 IXFLAGREG   = $1003   ; Interfacing Flag Register
-FLPDMAREG   = $1004   ; Floppy DMA register
+FLPLBAREG  	= $1004 	; Floppy LBA address register
 FLPSECREG   = $1005   ; Floppy Sector count register for read/write
+FLPDMAREG   = $1006   ; Floppy DMA register (16bit register)
 
 IPRPTR  = $1004   ; Keyboard input buf read ptr (2 bytes)
 IPWPTR  = $1005   ; Keyboard input buf write ptr (2 bytes)

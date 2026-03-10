@@ -19,6 +19,9 @@
 #include "fake6502.h"
 
 // Data Macros
+#define FLPLBAREG_ADDR 	0xFFE4
+#define FLPDMAREG_ADDR 	0xFFE6
+#define FLPSECREG_ADDR 	0xFFE8
 #define UARTINREG_ADDR 	0xFFEA
 #define UARTOUTREG_ADDR 0xFFEC
 #define IXFLAGREG_ADDR 	0xFFEE
@@ -31,6 +34,8 @@
 // Internal functions
 static void dbgReset(void);
 static void dbgSendToUart(uint8_t k);
+static void dbgFloppyRead();
+static void dbgFloppyWrite();
 static uint8_t dbgReadFromUart(void);
 static int dbgRunProgCont(void);
 static void dbgDisplayHelp(void);
@@ -78,7 +83,7 @@ static int dbgSignal, dbgMainWinMaxLines, dbgMainWinMaxCols, dbgUiType, dbgBpLis
 static window_t dbgDbgWin, dbgTermWin, dbgSrcWin;
 static breakpoint_t *dbgBpList;
 static uint8_t *dbgMEM6502;
-static uint16_t dbgUartInReg, dbgUartOutReg, dbgIxReg;
+static uint16_t dbgUartInReg, dbgUartOutReg, dbgIxReg, dbgFlpLbaReg, dbgFlpDmaReg, dbgFlpSecReg;
 static struct vobj_symbol *dbgSymbols;
 
 // DEFINITIONS:-
@@ -123,10 +128,18 @@ void dbgInit(int argc, char** argv) {
 	}
 	fclose(f);
 
-	dbgUartInReg = 0; dbgUartOutReg = 0; dbgIxReg = 0;
+	dbgUartInReg = 0;
+	dbgUartOutReg = 0;
+	dbgIxReg = 0;
+	dbgFlpLbaReg = 0;
+	dbgFlpDmaReg = 0;
+	dbgFlpSecReg = 0;
 	dbgUartInReg = 	read6502(UARTINREG_ADDR) 	| (read6502(UARTINREG_ADDR + 1) 	<< 8);
 	dbgUartOutReg = read6502(UARTOUTREG_ADDR) | (read6502(UARTOUTREG_ADDR + 1) 	<< 8);
 	dbgIxReg = 			read6502(IXFLAGREG_ADDR) 	| (read6502(IXFLAGREG_ADDR + 1) 	<< 8);
+	dbgFlpLbaReg = 	read6502(FLPLBAREG_ADDR) 	| (read6502(FLPLBAREG_ADDR + 1) 	<< 8);
+	dbgFlpDmaReg = 	read6502(FLPDMAREG_ADDR) 	| (read6502(FLPDMAREG_ADDR + 1) 	<< 8);
+	dbgFlpSecReg = 	read6502(FLPSECREG_ADDR) 	| (read6502(FLPSECREG_ADDR + 1) 	<< 8);
 	dbgReadDbgSyms(dbgSymFileName);
 	dbgInitDisplay();
 	dbgConsoleEcho("Loading debug symbols from %s\n", dbgSymFileName);
@@ -134,6 +147,10 @@ void dbgInit(int argc, char** argv) {
 	dbgConsoleEcho("uartInReg=%04hx\n", dbgUartInReg);
 	dbgConsoleEcho("uartOutReg=%04hx\n", dbgUartOutReg);
 	dbgConsoleEcho("dbgIxReg=%04hx\n", dbgIxReg);
+	dbgConsoleEcho("dbgFlpLbaReg=%04hx\n", dbgFlpLbaReg);
+	dbgConsoleEcho("dbgFlpDmaReg=%04hx\n", dbgFlpDmaReg);
+	dbgConsoleEcho("dbgFlpSecReg=%04hx\n", dbgFlpSecReg);
+	dbgReset();
 	dbgRunning = false;
 	dbgCurrentlyAtBp = false;
 	dbgInsideTerminal = false;
@@ -614,21 +631,32 @@ static int dbgPerformChecks(void) {
 
   uint8_t res = read6502(dbgIxReg);
 
-	if (res & 0x80) {
+  // Program exit request
+  if (res & 0x80) {
     return SIG_PROGRAM_EXITED;
   }
 
-  if (res & 0x40) {
+	// Control return request
+	if (res & 0x40) {
     return SIG_CONTROL_RETURNED;
   }
 
+	// Floppy Read Request
+  if (res & 0x20) {
+ 		dbgFloppyRead();
+   return SIG_FLOPPY_READ;
+  }
+
+  // Floppy Write Request
+  if (res & 0x10) {
+		dbgFloppyWrite();
+  	return SIG_FLOPPY_WRITE;
+  }
+
+  // Terminal text output request
   if (res & 0x01) {
     dbgTerminalPutchar(dbgReadFromUart());
     return SIG_TEXTOUT;
-  }
-
-  if (res & 0x20) {
-    return SIG_VGAOUT;
   }
 
   return SIG_NOSIG;
@@ -1087,4 +1115,15 @@ static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz){
 
   dbgConsoleEcho("\tsymbol=%s not found!\n", cmdtoks[1]);
   return;
+}
+
+static void dbgFloppyRead() {
+	/*
+	uint8_t sectorCount = read6502(dbgFlpSecReg);
+	uint16_t dmaAddr = read6502(dbgFlpDmaReg) | read6502(dbgFlpDmaReg + 1) << 8;
+	*/
+}
+
+static void dbgFloppyWrite() {
+
 }

@@ -29,8 +29,10 @@ typedef enum {
   SIG_PROGRAM_EXITED,    // 6502 sent program exit signal
   SIG_CONTROL_RETURNED,  // 6502 sent request to start stepping again
   SIG_TEXTOUT,           // 6502 sent request to output text to emulator console
-  SIG_VGAOUT,            // 6502 sent request to output text to own terminal
-  SIG_INTERRUPT_TERMINAL // Ctrl+C signal sent while inside terminal
+  SIG_INTERRUPT_TERMINAL,// Ctrl+C signal sent while inside terminal
+  SIG_FLOPPY_READ,			 // 6502 sent FloppyRead() request
+  SIG_FLOPPY_WRITE,			 // 6502 sent FloppyWrite() request
+  SIG_VGAOUT						 // 6502 sent VgaOut() request
 } signal_t;
 
 // Breakpoint struct to track bps and if at bp
