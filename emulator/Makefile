@@ -20,28 +20,21 @@ else
     GDB := $(shell which gdb 2>/dev/null)
 endif
 
-DELETE_TEMP := .c_test.c .c_test$(EXE) .n_t.c .n_t.o
 .DELETE_ON_ERROR:
+
 post_build_cleanup:
-ifeq ($(HOST_OS),windows)
-	-@for %%f in ($(DELETE_TEMP)) do if exist %%f del /q %%f
-else
-	-@rm -f $(DELETE_TEMP)
-endif
 
 CC := gcc
 
-C2X_SUPPORTED := $(shell echo "int main(){}" > .c_test.c && \
-    $(CC) -std=c2x .c_test.c -o .c_test$(EXE) >nul 2>&1 && echo yes)
+# Detect C2X support without creating temporary files
+C2X_SUPPORTED := $(shell printf "int main(){return 0;}" | \
+    $(CC) -std=c2x -x c - -o /dev/null 2>/dev/null && echo yes)
 
 ifeq ($(C2X_SUPPORTED),yes)
     CSTD := -std=c2x
 else
     CSTD := -std=c1x
 endif
-
-$(shell $(RM_FILE) .c_test.c)
-$(shell $(RM_FILE) .c_test$(EXE))
 
 SRC_DIR := src
 INC_DIR := src/include
@@ -91,8 +84,8 @@ dirs:
 	$(call MKDIR_P,$(BIN_DIR))
 	$(call MKDIR_P,$(TEST_BUILD))
 
-release: dirs $(TARGET) post_build_cleanup
-debug: dirs $(TARGET_DBG) post_build_cleanup
+release: dirs $(TARGET)
+debug: dirs $(TARGET_DBG)
 
 $(TARGET): $(OBJS_REL)
 	$(CC) $^ $(LDFLAGS) -o $@
