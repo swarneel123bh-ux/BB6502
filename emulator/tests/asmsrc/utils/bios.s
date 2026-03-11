@@ -221,7 +221,7 @@ floppy_write:
 .wait:
   lda IXFLAGREG
   and #%00001000
-  beq .wait
+  bne .wait
 
   pla
   rts
@@ -252,7 +252,7 @@ floppy_read:
 .wait:
   lda IXFLAGREG
   and #%00000100
-  beq .wait
+  bne .wait
 
   pla
   rts
