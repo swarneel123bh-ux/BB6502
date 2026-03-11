@@ -78,7 +78,7 @@ static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz);
 
 // Variables
 static bool dbgRunning, dbgInsideTerminal, dbgCurrentlyAtBp;
-static char dbgCmdBuf[100], *dbgBinFileName, *dbgSrcFileName, *dbgSymFileName;
+static char dbgCmdBuf[100], *dbgBinFileName, *dbgSrcFileName, *dbgSymFileName, *dbgFloppyFile;
 static int dbgSignal, dbgMainWinMaxLines, dbgMainWinMaxCols, dbgUiType, dbgBpListSize, dbgNofBps, dbgNofSyms;
 static window_t dbgDbgWin, dbgTermWin, dbgSrcWin;
 static breakpoint_t *dbgBpList;
@@ -102,6 +102,7 @@ void dbgInit(int argc, char** argv) {
   dbgBinFileName = NULL;
   dbgSrcFileName = NULL;
   dbgSymFileName = NULL;
+  dbgFloppyFile = NULL;
   dbgSignal = SIG_NOSIG;
 	dbgParseCmdLineArgs(argc, argv);
 
@@ -143,6 +144,7 @@ void dbgInit(int argc, char** argv) {
 	dbgReadDbgSyms(dbgSymFileName);
 	dbgInitDisplay();
 	dbgConsoleEcho("Loading debug symbols from %s\n", dbgSymFileName);
+	dbgConsoleEcho("Loading floppy img from %s\n", dbgFloppyFile);
   dbgConsoleEcho("Loaded %d symbols\n", dbgNofSyms);
 	dbgConsoleEcho("uartInReg=%04hx\n", dbgUartInReg);
 	dbgConsoleEcho("uartOutReg=%04hx\n", dbgUartOutReg);
@@ -238,6 +240,7 @@ static void dbgParseCmdLineArgs(int argc, char **argv) {
     fprintf(stdout, "\tflags:-\n");
     fprintf(stdout, "\t\t-d <filename>: load debug symbols\n");
     fprintf(stdout, "\t\t-s <filename>: load source code\n");
+    fprintf(stdout, "\t\t-f <filename>: load floppy image\n");
     fprintf(stdout, "\t\t-u <type[tui/gui]>: interface type\n");
     exit(0);
   }
@@ -247,6 +250,7 @@ static void dbgParseCmdLineArgs(int argc, char **argv) {
   if (argc < 3) {
     dbgSrcFileName = NULL;
     dbgSymFileName = NULL;
+    dbgFloppyFile = NULL;
     dbgUiType = 0;
     return;
   }
@@ -266,7 +270,16 @@ static void dbgParseCmdLineArgs(int argc, char **argv) {
         fprintf(stderr, "Missing argument file: -s <filename>\n");
         exit(1);
       }
-      dbgSrcFileName = argv[i];
+      dbgSrcFileName = argv[i + 1];
+    }
+
+    // Load floppy image
+    if (strcmp(argv[i], "-f") == 0) {
+      if (i >= argc - 1 || argv[i + 1][0] == '-') {
+        fprintf(stderr, "Missing argument file: -f <image>\n");
+        exit(1);
+      }
+      dbgFloppyFile = argv[i + 1];
     }
 
     // Set ui type
@@ -642,13 +655,13 @@ static int dbgPerformChecks(void) {
   }
 
 	// Floppy Read Request
-  if (res & 0x20) {
+  if (res & 0b00100000) {
  		dbgFloppyRead();
-   return SIG_FLOPPY_READ;
+    return SIG_FLOPPY_READ;
   }
 
   // Floppy Write Request
-  if (res & 0x10) {
+  if (res & 0b00010000) {
 		dbgFloppyWrite();
   	return SIG_FLOPPY_WRITE;
   }
@@ -1118,12 +1131,39 @@ static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz){
 }
 
 static void dbgFloppyRead() {
-	/*
-	uint8_t sectorCount = read6502(dbgFlpSecReg);
+  if (!dbgFloppyFile) { 
+    return;
+  }
+	// uint8_t sectorCount = read6502(dbgFlpSecReg);
 	uint16_t dmaAddr = read6502(dbgFlpDmaReg) | read6502(dbgFlpDmaReg + 1) << 8;
-	*/
+  uint8_t lbaAddr = read6502(dbgFlpLbaReg);
+  uint8_t buf[256];
+  FILE* f = fopen(dbgFloppyFile, "rb");
+  fseek(f, lbaAddr * 256, SEEK_SET);
+  /*int bytes_read = */fread(buf, 1, sizeof(buf), f);
+  memcpy(&dbgMEM6502[dmaAddr], buf, sizeof(buf));
+  fclose(f);
+
+  write6502(dbgIxReg, (read6502(dbgIxReg) & 0b11000111) | 0b00001000);
+  irq6502();
 }
 
 static void dbgFloppyWrite() {
-
+  // dbgConsoleEcho("\nStarting floppy write\n");
+  if (!dbgFloppyFile) { 
+    // dbgConsoleEcho("\nFloppy write failed, no file\n");
+    return;
+  }
+	// uint8_t sectorCount = read6502(dbgFlpSecReg);
+	uint16_t dmaAddr = read6502(dbgFlpDmaReg) | read6502(dbgFlpDmaReg + 1) << 8;
+  uint8_t lbaAddr = read6502(dbgFlpLbaReg);
+  char buf[256];
+  memcpy(buf, &dbgMEM6502[dmaAddr], sizeof(buf));
+  FILE* f = fopen(dbgFloppyFile, "rb+");
+  fseek(f, lbaAddr * 256, SEEK_SET);
+  /*int bytes_written = */fwrite(buf, 1, sizeof(buf), f);
+  fclose(f);
+  write6502(dbgIxReg, (read6502(dbgIxReg) & 0b11000111) | 0b00001000);
+  irq6502();
+  // dbgConsoleEcho("\nFloppy write done\n");
 }

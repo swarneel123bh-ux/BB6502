@@ -199,7 +199,7 @@ getc:
 ; subroutine floppy_write
 ; params: A register  = Number of sectors to write
 ;         Y register  = LBA Address in the floppy where the data to write goes
-;         X register  = DMA Address for the data to be read from for writing
+;         FLPDMA register  = 16-bit DMA Address for the data to be read from for writing
 ; desc: Sends floppyWrite request to emulator, and waits for irq (not really
 ; since the program is single threaded meaning the irq is triggered immediately
 ; from the 6502's perspective) (NEED TO CHANGE IT WHEN THREADED IMPLEMENTATION
@@ -210,21 +210,18 @@ floppy_write:
 
   sta FLPSECREG	; store the number of sectors to write
 
-  txa
-  sta FLPDMAREG ; store the DMA address to write data from
-
   tya
   sta FLPLBAREG	; store the LBA address of the sector
 
   lda IXFLAGREG
-  ora #$10
+  ora #%00010000
   sta IXFLAGREG
 
 ; DMA DOESNT NEED TO WAIT
 .wait:
   lda IXFLAGREG
-  and #$10
-  bne .wait
+  and #%00001000
+  beq .wait
 
   pla
   rts
@@ -233,7 +230,7 @@ floppy_write:
 ; subroutine floppy_read
 ; params: A register  = Number of sectors to read
 ;         Y register  = LBA Address in floppy from where the data will be read
-;         X register  = DMA Address for the data to be read into
+;         FLPDMA register  = 16-bit DMA Address for the data to be read into
 ; desc: Sends floppyRead request to emulator, and waits for irq (not really
 ; since the program is single threaded meaning the irq is triggered immediately
 ; from the 6502's perspective) (NEED TO CHANGE IT WHEN THREADED IMPLEMENTATION
@@ -244,21 +241,18 @@ floppy_read:
 
   sta FLPSECREG	; store the number of sectors to write
 
-  txa
-  sta FLPDMAREG ; store the DMA address to write data from
-
   tya
   sta FLPLBAREG	; store the LBA address of the sector
 
   lda IXFLAGREG
-  ora #$20
+  ora #%00100000
   sta IXFLAGREG
 
 ; DMA DOESNT NEED TO WAIT
 .wait:
   lda IXFLAGREG
-  and #$20
-  bne .wait
+  and #%00000100
+  beq .wait
 
   pla
   rts
@@ -292,11 +286,14 @@ irq:
   tya
   pha
 
-  ; If irq due to floppyRead() call
+  ; If irq due to floppy
+  ; NOTE: We use the same bit for both floppy read and write
+  ; and we are clearing both requests together
+  ; That needs to change later with floppy registers
   lda IXFLAGREG
-  ora #%00100000
-  bne .notFloppyRead   ; if b5 not set, then irq was not from a floppyRead() call
-  and #%11011111
+  and #%00001000
+  beq .notFloppy
+  and #%11000111
   sta IXFLAGREG
   pla
   tay
@@ -305,21 +302,7 @@ irq:
   pla
   rti
 
-.notFloppyRead:
-  ; If irq due to floppyWrite() call
-  lda IXFLAGREG
-  ora #%00010000
-  bne .notFloppyWrite  ; if b4 not set, then irq was not from a floppyWrite() call
-  and #%11101111
-  sta IXFLAGREG
-  pla
-  tay
-  pla
-  tax
-  pla
-  rti
-
-.notFloppyWrite:
+.notFloppy:
   ; If irq due to sendToUart() call
   lda IXFLAGREG
   lda UARTINREG
