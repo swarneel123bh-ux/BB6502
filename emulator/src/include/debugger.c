@@ -1145,6 +1145,7 @@ static void dbgFloppyRead() {
   fclose(f);
 
   write6502(dbgIxReg, (read6502(dbgIxReg) & 0b11000111) | 0b00001000);
+  // dbgConsoleEcho("DMA=%04X LBA=%02X\n", dmaAddr, lbaAddr);
   irq6502();
 }
 

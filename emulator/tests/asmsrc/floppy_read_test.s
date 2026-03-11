@@ -13,7 +13,7 @@ _main:
 
   ; Set floppy stuff
   ; Set LBA
-  lda $00 ; LBA Addr 0
+  lda #$03 ; LBA Addr 0
   tay
 
   ; Set DMA
@@ -23,7 +23,7 @@ _main:
   sta FLPDMAREG+1
 
   ; Set number of sectors to read
-  lda 1 ; Read 1 sector
+  lda 1 ; Read 1 sector (Unused)
   jsr floppy_read
 
 
