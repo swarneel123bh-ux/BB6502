@@ -13,9 +13,9 @@
   #include <ncurses.h>
 #endif
 #include <string.h>
+#include <limits.h>
 // Project includes
 #include "debugger.h"
-#include "vobjdump.h"
 #include "fake6502.h"
 
 // Data Macros
@@ -78,13 +78,16 @@ static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz);
 
 // Variables
 static bool dbgRunning, dbgInsideTerminal, dbgCurrentlyAtBp;
-static char dbgCmdBuf[100], *dbgBinFileName, *dbgSrcFileName, *dbgSymFileName, *dbgFloppyFile;
+static char dbgCmdBuf[100], *dbgBinFileName, *dbgSrcFileName, *dbgFloppyFile;
+#define MAX_SYM_FILES 16
+static char *dbgSymFileNames[MAX_SYM_FILES];
+static int dbgNofSymFiles;
 static int dbgSignal, dbgMainWinMaxLines, dbgMainWinMaxCols, dbgUiType, dbgBpListSize, dbgNofBps, dbgNofSyms;
 static window_t dbgDbgWin, dbgTermWin, dbgSrcWin;
 static breakpoint_t *dbgBpList;
 static uint8_t *dbgMEM6502;
 static uint16_t dbgUartInReg, dbgUartOutReg, dbgIxReg, dbgFlpLbaReg, dbgFlpDmaReg, dbgFlpSecReg;
-static struct vobj_symbol *dbgSymbols;
+static dbg_symbol_t *dbgSymbols;
 
 // DEFINITIONS:-
 
@@ -101,8 +104,9 @@ void dbgInit(int argc, char** argv) {
   memset(dbgCmdBuf, 0, sizeof(dbgCmdBuf));
   dbgBinFileName = NULL;
   dbgSrcFileName = NULL;
-  dbgSymFileName = NULL;
   dbgFloppyFile = NULL;
+  dbgNofSymFiles = 0;
+  memset(dbgSymFileNames, 0, sizeof(dbgSymFileNames));
   dbgSignal = SIG_NOSIG;
 	dbgParseCmdLineArgs(argc, argv);
 
@@ -121,13 +125,24 @@ void dbgInit(int argc, char** argv) {
 		exit(1);
 	}
 
-	uint8_t tempbyte = 0x00;
-	uint16_t tempaddr = 0x0000;
-	while (fread(&tempbyte, sizeof(uint8_t), 1, f)) {
-		write6502(tempaddr, tempbyte);
+  // Detect binary type from file size:
+  //   64KB (0x10000) = flat address space image (test binaries) -> load at $0000
+  //   anything else  = ROM-only binary                          -> load at $8000
+  fseek(f, 0, SEEK_END);
+  long binSize = ftell(f);
+  rewind(f);
+
+  uint32_t tempaddr = (binSize >= 0x10000) ? 0x0000 : 0x8000;
+  uint8_t tempbyte = 0x00;
+  while (fread(&tempbyte, sizeof(uint8_t), 1, f)) {
+    if (tempaddr > 0xFFFF) {
+      fprintf(stderr, "Binary too large for address space, truncating\n");
+      break;
+    }
+    write6502((uint16_t)tempaddr, tempbyte);
     tempaddr++;
-	}
-	fclose(f);
+  }
+  fclose(f);
 
 	dbgUartInReg = 0;
 	dbgUartOutReg = 0;
@@ -141,11 +156,13 @@ void dbgInit(int argc, char** argv) {
 	dbgFlpLbaReg = 	read6502(FLPLBAREG_ADDR) 	| (read6502(FLPLBAREG_ADDR + 1) 	<< 8);
 	dbgFlpDmaReg = 	read6502(FLPDMAREG_ADDR) 	| (read6502(FLPDMAREG_ADDR + 1) 	<< 8);
 	dbgFlpSecReg = 	read6502(FLPSECREG_ADDR) 	| (read6502(FLPSECREG_ADDR + 1) 	<< 8);
-	dbgReadDbgSyms(dbgSymFileName);
 	dbgInitDisplay();
-	dbgConsoleEcho("Loading debug symbols from %s\n", dbgSymFileName);
+	for (int i = 0; i < dbgNofSymFiles; i++) {
+		dbgConsoleEcho("Loading debug symbols from %s\n", dbgSymFileNames[i]);
+		dbgReadDbgSyms(dbgSymFileNames[i]);
+	}
 	dbgConsoleEcho("Loading floppy img from %s\n", dbgFloppyFile);
-  dbgConsoleEcho("Loaded %d symbols\n", dbgNofSyms);
+  dbgConsoleEcho("Loaded %d symbols total\n", dbgNofSyms);
 	dbgConsoleEcho("uartInReg=%04hx\n", dbgUartInReg);
 	dbgConsoleEcho("uartOutReg=%04hx\n", dbgUartOutReg);
 	dbgConsoleEcho("dbgIxReg=%04hx\n", dbgIxReg);
@@ -238,7 +255,7 @@ static void dbgParseCmdLineArgs(int argc, char **argv) {
 	if (argc < 2) {
     fprintf(stdout, "usage: %s <binary> [flags]\n", argv[0]);
     fprintf(stdout, "\tflags:-\n");
-    fprintf(stdout, "\t\t-d <filename>: load debug symbols\n");
+    fprintf(stdout, "\t\t-d <filename>: load debug symbols (ld65 --dbgfile .dbg file, repeatable)\n");
     fprintf(stdout, "\t\t-s <filename>: load source code\n");
     fprintf(stdout, "\t\t-f <filename>: load floppy image\n");
     fprintf(stdout, "\t\t-u <type[tui/gui]>: interface type\n");
@@ -249,7 +266,6 @@ static void dbgParseCmdLineArgs(int argc, char **argv) {
 
   if (argc < 3) {
     dbgSrcFileName = NULL;
-    dbgSymFileName = NULL;
     dbgFloppyFile = NULL;
     dbgUiType = 0;
     return;
@@ -261,7 +277,11 @@ static void dbgParseCmdLineArgs(int argc, char **argv) {
         fprintf(stderr, "Missing argument file: -d <filename>\n");
         exit(1);
       }
-      dbgSymFileName = argv[i + 1];
+      if (dbgNofSymFiles < MAX_SYM_FILES) {
+        dbgSymFileNames[dbgNofSymFiles++] = argv[i + 1];
+      } else {
+        fprintf(stderr, "Too many -d flags (max %d)\n", MAX_SYM_FILES);
+      }
     }
 
     // Load source code
@@ -476,8 +496,8 @@ static void dbgAddBp(char **cmdtoks, size_t cmdtoksiz) {
   // Symbol given
   for (int i = 0; i < dbgNofSyms; i++) {
     if (strcmp(cmdtoks[1], dbgSymbols[i].symbolname) == 0) {
-      dbgConsoleEcho( "\tSetting new breakpoint at name=%s, addr=0x%04hx\n", dbgSymbols[i].symbolname, BPTMASK(dbgSymbols[i].val));
-      dbgSetBp((uint16_t)dbgSymbols[i].val, dbgSymbols[i].symbolname);
+      dbgConsoleEcho("\tSetting new breakpoint at name=%s, addr=0x%04hx\n", dbgSymbols[i].symbolname, dbgSymbols[i].addr);
+      dbgSetBp(dbgSymbols[i].addr, dbgSymbols[i].symbolname);
       return;
     }
   }
@@ -762,7 +782,7 @@ static void dbgSetBp(uint16_t addr, char symbol[MAX_SYMBOL_LENGTH]) {
   dbgBpList[dbgNofBps].symbol = (char *)calloc(MAX_SYMBOL_LENGTH, sizeof(char));
   strncpy(dbgBpList[dbgNofBps].symbol, symbol, MAX_SYMBOL_LENGTH - 1);
   dbgBpList[dbgNofBps].hasSymbol = true;
-  dbgSymbols[dbgNofBps++].symbolname[strlen(symbol)] = 0;
+  dbgNofBps++;
   return;
 }
 
@@ -788,72 +808,70 @@ static void dbgRmvBp(uint16_t bp) {
 }
 
 static void dbgReadDbgSyms(const char *fname) {
-	if (!fname) {
-    fprintf(stderr, "vobjdump: Not a valid file");
-    return;
-  }
+  // Parses an ld65 debug file (generated with --dbgfile) and APPENDs all
+  // code labels into the global dbgSymbols table.
+  // No .export directives required in assembly source.
+  //
+  // ld65 uses a tab between the record type and fields, e.g.:
+  //   sym\tid=N,name="symname",...,val=0xXXXX,...,type=lab
+  // We extract name and val from every sym line where type=lab.
+  if (!fname) return;
 
-  // Open the file and read symbols using vobjdump functions
-  FILE *f = fopen(fname, "rb");
+  FILE *f = fopen(fname, "r");
   if (!f) {
-    fprintf(stderr, "vobjdump: Cannot open \"%s\" for reading!\n", fname);
+    fprintf(stderr, "symload: Cannot open \"%s\": ", fname);
+    perror("");
     return;
   }
 
-  vlen = filesize(f, fname);
-  if (!vlen) {
-    fprintf(stderr, "vobjdump: Read error on \"%s\"!\n", fname);
-    fclose(f);
-    return;
+  int capacity = (dbgSymbols == NULL || dbgNofSyms == 0) ? 64 : dbgNofSyms * 2;
+  if (dbgSymbols == NULL) {
+    dbgSymbols = malloc(capacity * sizeof(dbg_symbol_t));
+    if (!dbgSymbols) { fclose(f); return; }
   }
 
-  vobj = malloc(vlen);
-  if (!vobj) {
-    fprintf(stderr,
-            "vobjdump: Unable to allocate %lu bytes "
-            "to buffer file \"%s\"!\n",
-            vlen, fname);
-    fclose(f);
-    return;
-  }
+  char line[512];
+  while (fgets(line, sizeof(line), f)) {
+    // ld65 separates record type from fields with a tab
+    if (strncmp(line, "sym", 3) != 0 || (line[3] != '\t' && line[3] != ' ')) continue;
+    // Only load code labels (type=lab), skip equ/import etc.
+    if (strstr(line, "type=lab") == NULL) continue;
 
-  if (fread(vobj, 1, vlen, f) != vlen) {
-    fprintf(stderr, "vobjdump: Read error on \"%s\"!\n", fname);
-    free(vobj);
-    fclose(f);
-    return;
-  }
+    // Extract name="..."
+    char symname[MAX_SYMBOL_LENGTH];
+    char *nameptr = strstr(line, "name=\"");
+    if (!nameptr) continue;
+    nameptr += 6; // skip: name="
+    int ni = 0;
+    while (*nameptr && *nameptr != '"' && ni < MAX_SYMBOL_LENGTH - 1)
+      symname[ni++] = *nameptr++;
+    symname[ni] = '\0';
+    if (ni == 0) continue;
 
-  struct vobj_symbol *vsymbols = NULL;
-  int nsymsRead;
-  vsymbols = vobjdump(&nsymsRead); // Edited vobjdump function, see vobjdump.c
-  dbgNofSyms = 0;
+    // Extract val=0xXXXX
+    char *valptr = strstr(line, "val=0x");
+    if (!valptr) continue;
+    unsigned int addr;
+    if (sscanf(valptr, "val=0x%x", &addr) != 1) continue;
 
-  // Loop once to find out how many debug symbols exist
-  for (int i = 0; i < nsymsRead; i++) {
+    // Skip all-caps hardware EQUs (UARTINREG, IXFLAGREG, etc.)
+    if (dbgStrIsAllCaps(symname)) continue;
+
+    // Grow array if needed
+    if (dbgNofSyms >= capacity) {
+      capacity *= 2;
+      dbg_symbol_t *tmp = realloc(dbgSymbols, capacity * sizeof(dbg_symbol_t));
+      if (!tmp) break;
+      dbgSymbols = tmp;
+    }
+
+    memset(&dbgSymbols[dbgNofSyms], 0, sizeof(dbg_symbol_t));
+    strncpy(dbgSymbols[dbgNofSyms].symbolname, symname, MAX_SYMBOL_LENGTH - 1);
+    dbgSymbols[dbgNofSyms].addr = (uint16_t)addr;
     dbgNofSyms++;
-    struct vobj_symbol s = vsymbols[i];
-    if (dbgStrStartsWith(".", s.name) || dbgStrStartsWith("org", s.name) ||
-        dbgStrIsAllCaps(s.name))
-      continue;
-
   }
 
-  // Allocate mem
-  dbgSymbols = (struct vobj_symbol *)malloc(sizeof(struct vobj_symbol) * dbgNofSyms);
-
-  // Loop again to populate dbgSymbols
-  for (int i = 0, k = 0; i < nsymsRead && k < dbgNofSyms; i++) {
-    struct vobj_symbol s = vsymbols[i];
-    dbgSymbols[k] = s;
-    strncpy(dbgSymbols[k].symbolname, s.name, MAX_SYMBOL_LENGTH - 1);
-    dbgSymbols[k].symbolname[strlen(s.name)] = 0; // append 0 at the end of the symbol name
-    k++;
-  }
-
-  free(vobj);
   fclose(f);
-  return;
 }
 
 static int dbgStrToInt(const char *s, int *out) {
@@ -1120,8 +1138,8 @@ static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz){
   // Symbol given
   for (int i = 0; i < dbgNofSyms; i++) {
     if (strcmp(cmdtoks[1], dbgSymbols[i].symbolname) == 0) {
-      dbgConsoleEcho( "\tRemoved breakpoint at name=%s, addr=0x%04hx\n", dbgSymbols[i].symbolname, BPTMASK(dbgSymbols[i].val));
-      dbgRmvBp((uint16_t)dbgSymbols[i].val);
+      dbgConsoleEcho("\tRemoved breakpoint at name=%s, addr=0x%04hx\n", dbgSymbols[i].symbolname, dbgSymbols[i].addr);
+      dbgRmvBp(dbgSymbols[i].addr);
       return;
     }
   }

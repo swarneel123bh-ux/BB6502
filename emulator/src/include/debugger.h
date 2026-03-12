@@ -161,6 +161,14 @@ static const opcode_t optable[256] = {
 /* FC */ {"NOP",AM_ABSX,3},{"SBC",AM_ABSX,3},{"INC",AM_ABSX,3},{"???",AM_IMP,1},
 };
 
+
+// Debug symbol — loaded from ld65 .map file
+#define MAX_SYMBOL_LENGTH 32
+typedef struct {
+  char     symbolname[MAX_SYMBOL_LENGTH];  // null-terminated name
+  uint16_t addr;                           // resolved address
+} dbg_symbol_t;
+
 // Global functions
 extern void dbgInit(int argc, char** argv);
 extern void dbgCleanup(void);

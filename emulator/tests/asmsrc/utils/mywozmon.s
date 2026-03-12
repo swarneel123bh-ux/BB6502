@@ -21,9 +21,9 @@ BACKSPACE:      DEY             ; Back up text index.
                 BMI GETLINE     ; Beyond start of line, reinitialize.
 
 NEXTCHAR:       jsr getc
-                cmp #"."
+                cmp #'.'
                 beq NEXTCHAR_
-                cmp #":"
+                cmp #':'
                 BEQ NEXTCHAR_
                 ora #$80
 NEXTCHAR_:      ;LDA KBDCR       ; Key ready?

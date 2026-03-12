@@ -1,20 +1,16 @@
-  ; not implemented vga or floppy yet so we cannot test it right now
-  .include vars.s
-  .dsb $2000, 0
-  .org $2000
+.include "vars.s"
+
+.segment "CODE"
 
 _main:
-
   lda #$01
   tax
-  lda #"c"
+  lda #'c'
   jsr putc
-
-  ; Exit
   jmp exit
-  
-msg:  .asciiz "hello vga", 0xd, 0xa, 0
-_main_end:
 
-  .org $8000
-  .include bios.s
+.segment "RODATA"
+msg: .byte "hello vga", $0d, $0a, $00
+
+.segment "BIOS"
+.include "bios.s"

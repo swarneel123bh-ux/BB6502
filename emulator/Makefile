@@ -1,4 +1,4 @@
-.PHONY: all release debug clean dirs tests test run_test run_debug scripts
+.PHONY: all release debug clean dirs tests test run_test run_debug scripts post_build_cleanup
 
 all: release test debug scripts post_build_cleanup
 
@@ -57,7 +57,11 @@ CFLAGS_REL := $(CFLAGS_BASE) -O2 -DNDEBUG
 CFLAGS_DBG := $(CFLAGS_BASE) -g3 -O0 -fno-omit-frame-pointer
 LDFLAGS := $(SYS_LIBS)
 
-VASM := tests/vasm$(EXE)
+# ----- ca65 / ld65 (replaces vasm) -----
+CA65     := ca65
+LD65     := ld65
+CA65FLAGS := --cpu 65c02 -g -I $(TEST_SRC_DIR)/utils
+TEST_CFG  := $(TEST_SRC_DIR)/test.cfg
 
 TARGET     := $(BIN_DIR)/debug6502$(EXE)
 TARGET_DBG := $(BIN_DIR)/debug6502dbg$(EXE)
@@ -68,15 +72,10 @@ OBJS_DBG := $(SRCS:%.c=$(OBJ_DBG)/%.o)
 
 ASM_SRCS  := $(wildcard $(TEST_SRC_DIR)/*.s)
 TEST_BINS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.out,$(ASM_SRCS))
-TEST_SYMS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.sym,$(ASM_SRCS))
-TEST_VOBJ := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.vobj,$(ASM_SRCS))
+TEST_OBJS := $(patsubst $(TEST_SRC_DIR)/%.s,$(TEST_BUILD)/%.o,$(ASM_SRCS))
 
-# Include-only assembly helpers
+# Include-only assembly helpers (dependencies only, not assembled directly)
 UTIL_SRCS := $(wildcard $(TEST_SRC_DIR)/utils/*.s)
-
-VASM_ASM_FLAGS  := -Fbin  -dotdir -I$(TEST_SRC_DIR)/utils
-VASM_SYM_FLAGS  := -dotdir -I$(TEST_SRC_DIR)/utils
-VASM_VOBJ_FLAGS := -Fvobj -dotdir -I$(TEST_SRC_DIR)/utils
 
 dirs:
 	$(call MKDIR_P,$(OBJ_REL))
@@ -101,20 +100,16 @@ $(OBJ_DBG)/%.o: %.c
 	$(call MKDIR_P,$(dir $@))
 	$(CC) $(CFLAGS_DBG) -c $< -o $@
 
-tests: $(TEST_BINS) $(TEST_SYMS) $(TEST_VOBJ)
+tests: $(TEST_BINS)
 test: tests
 
-$(TEST_BUILD)/%.out: $(TEST_SRC_DIR)/%.s $(UTIL_SRCS)
+# ----- Assemble each test: ca65 -> .o, then ld65 -> flat .out binary -----
+$(TEST_BUILD)/%.o: $(TEST_SRC_DIR)/%.s $(UTIL_SRCS) $(TEST_CFG)
 	$(call MKDIR_P,$(TEST_BUILD))
-	$(VASM) $(VASM_ASM_FLAGS) -o $@ $<
+	$(CA65) $(CA65FLAGS) -o $@ $<
 
-$(TEST_BUILD)/%.sym: $(TEST_SRC_DIR)/%.s $(UTIL_SRCS)
-	$(call MKDIR_P,$(TEST_BUILD))
-	$(VASM) $(VASM_SYM_FLAGS) -Llo -o $@ $<
-
-$(TEST_BUILD)/%.vobj: $(TEST_SRC_DIR)/%.s $(UTIL_SRCS)
-	$(call MKDIR_P,$(TEST_BUILD))
-	$(VASM) $(VASM_VOBJ_FLAGS) -o $@ $<
+$(TEST_BUILD)/%.out: $(TEST_BUILD)/%.o $(TEST_CFG)
+	$(LD65) -C $(TEST_CFG) --dbgfile $(TEST_BUILD)/$*.dbg -o $@ $<
 
 run_test: release test
 	$(TARGET) $(TEST_BUILD)/uart_test.out
