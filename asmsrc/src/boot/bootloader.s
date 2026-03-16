@@ -32,7 +32,7 @@ _bootloader:
   lda #$20
   sta FLPDMAREG+1
 
-  lda #1        ; Number of sectors to load
+  lda #64        ; Number of sectors to load
 
   jsr floppy_read
 

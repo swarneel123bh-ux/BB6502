@@ -12,6 +12,8 @@ KERNEL_LOAD_ADDR = $2000  ; RAM address where bootloader loads the kernel
 ; (declared here as constants pointing into ZP segment)
 ; ----------------------------------------
 STRPTR      = $00     ; Zero page String Pointer (2 bytes: $00-$01)
+CMPPTR      = $02
+JMPPTR      = $4
 
 ; ----------------------------------------
 ; DEVICE REGISTERS
@@ -27,9 +29,6 @@ FLPDMAREG   = $1006   ; Floppy DMA register (16-bit)
 ; ----------------------------------------
 ; RAM VARIABLES
 ; ----------------------------------------
-IPRPTR      = $1004   ; Keyboard input buf read ptr  (2 bytes)
-IPWPTR      = $1005   ; Keyboard input buf write ptr (2 bytes)
-IPBUF       = $1100   ; Keyboard input buffer (256 bytes: $1100-$11FF)
 
 ; ixFlagReg bit description:
 ; b7: set   => Exit request
