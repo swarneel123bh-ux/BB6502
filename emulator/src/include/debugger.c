@@ -1,33 +1,34 @@
-// Rewriting as a single Header+C file because of all the complicated header stuff
-// Global includes
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
+// Rewriting as a single Header+C file because of all the complicated header
+// stuff Global includes
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #ifdef HOST_OS_WINDOWS
-  #include <ncurses/ncurses.h>
+#include <ncurses/ncurses.h>
 #else
-  #include <ncurses.h>
+#include <ncurses.h>
 #endif
-#include <string.h>
 #include <limits.h>
+#include <string.h>
 // Project includes
 #include "debugger.h"
 #include "fake6502.h"
 
 // Data Macros
-#define FLPLBAREG_ADDR 	0xFFE4
-#define FLPDMAREG_ADDR 	0xFFE6
-#define FLPSECREG_ADDR 	0xFFE8
-#define UARTINREG_ADDR 	0xFFEA
+#define FLPLBAREG_ADDR 0xFFE4
+#define FLPDMAREG_ADDR 0xFFE6
+#define FLPSECREG_ADDR 0xFFE8
+#define UARTINREG_ADDR 0xFFEA
 #define UARTOUTREG_ADDR 0xFFEC
-#define IXFLAGREG_ADDR 	0xFFEE
+#define IXFLAGREG_ADDR 0xFFEE
 
 // Convenience Macros
-#define dbgStrStartsWith(s1, s2) dbg_strStartsWith(s1, strlen(s1), s2, strlen(s2))
+#define dbgStrStartsWith(s1, s2)                                               \
+  dbg_strStartsWith(s1, strlen(s1), s2, strlen(s2))
 #define dbgStrIsAllCaps(s) dbg_strIsAllCaps(s, strlen(s))
 
 // DECLARATIONS
@@ -45,14 +46,15 @@ static void dbgRunDbgCont(void);
 static void dbgListBps(void);
 static void dbgPrintMemRange(char *cmdtoks[], size_t cmdtoklen);
 static void dbgPrintRegisters(void);
-//static bool dbgCheck6502Exit(void);
+// static bool dbgCheck6502Exit(void);
 static void dbgStep6502(char *cmdtoks[], size_t cmdtoksize);
 static int dbgPerformChecks(void);
 static bool dbgCheckIfAtBp(uint16_t pc, int instrlen, int *bpnum);
 static void dbgSigintHandlerTerminal(int num);
 static void dbgSigintHandlerConsole(int num);
-static bool dbg_strStartsWith(const char *s1, size_t s1len, const char *s2, size_t s2len);
-static bool dbg_strIsAllCaps(const char* s, size_t slen);
+static bool dbg_strStartsWith(const char *s1, size_t s1len, const char *s2,
+                              size_t s2len);
+static bool dbg_strIsAllCaps(const char *s, size_t slen);
 static uint16_t dbgReadHexU16(void);
 static void dbgShowMem(uint16_t startaddr, uint16_t endaddr);
 // static int dbgGetKeyAsync(void);
@@ -63,7 +65,8 @@ static void dbgSetBp(uint16_t bp, char symbol[MAX_SYMBOL_LENGTH]);
 static void dbgRmvBp(uint16_t bp);
 static void dbgReadDbgSyms(const char *fname);
 static int dbgStrToInt(const char *s, int *out);
-static int dbgGetCmdTokens(char *cmdString, char *tokenArray[], size_t tokenArraySize);
+static int dbgGetCmdTokens(char *cmdString, char *tokenArray[],
+                           size_t tokenArraySize);
 static command_t dbgParseCommand(const char *cmd);
 static void dbgSendToUart(uint8_t k);
 static uint8_t dbgReadFromUart(void);
@@ -73,7 +76,8 @@ static void dbgConsoleEcho(const char *fmt, ...);
 static void dbgConsoleGetCmd(char *buf, size_t bufsiz);
 static void dbgTerminalPutchar(char c);
 static int dbgTerminalGetchar(void);
-static int dbgDisasmInstrFromPc(uint16_t pc, uint8_t (*read)(uint16_t), char *out);
+static int dbgDisasmInstrFromPc(uint16_t pc, uint8_t (*read)(uint16_t),
+                                char *out);
 static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz);
 
 // Variables
@@ -82,25 +86,25 @@ static char dbgCmdBuf[100], *dbgBinFileName, *dbgSrcFileName, *dbgFloppyFile;
 #define MAX_SYM_FILES 16
 static char *dbgSymFileNames[MAX_SYM_FILES];
 static int dbgNofSymFiles;
-static int dbgSignal, dbgMainWinMaxLines, dbgMainWinMaxCols, dbgUiType, dbgBpListSize, dbgNofBps, dbgNofSyms;
+static int dbgSignal, dbgMainWinMaxLines, dbgMainWinMaxCols, dbgUiType,
+    dbgBpListSize, dbgNofBps, dbgNofSyms;
 static window_t dbgDbgWin, dbgTermWin, dbgSrcWin;
 static breakpoint_t *dbgBpList;
 static uint8_t *dbgMEM6502;
-static uint16_t dbgUartInReg, dbgUartOutReg, dbgIxReg, dbgFlpLbaReg, dbgFlpDmaReg, dbgFlpSecReg;
+static uint16_t dbgUartInReg, dbgUartOutReg, dbgIxReg, dbgFlpLbaReg,
+    dbgFlpDmaReg, dbgFlpSecReg;
 static dbg_symbol_t *dbgSymbols;
 
 // DEFINITIONS:-
 
-uint8_t read6502(uint16_t address) {
-	return dbgMEM6502[address];
-}
+uint8_t read6502(uint16_t address) { return dbgMEM6502[address]; }
 
 void write6502(uint16_t address, uint8_t value) {
-	dbgMEM6502[address] = value;
-	return;
+  dbgMEM6502[address] = value;
+  return;
 }
 
-void dbgInit(int argc, char** argv) {
+void dbgInit(int argc, char **argv) {
   memset(dbgCmdBuf, 0, sizeof(dbgCmdBuf));
   dbgBinFileName = NULL;
   dbgSrcFileName = NULL;
@@ -108,26 +112,27 @@ void dbgInit(int argc, char** argv) {
   dbgNofSymFiles = 0;
   memset(dbgSymFileNames, 0, sizeof(dbgSymFileNames));
   dbgSignal = SIG_NOSIG;
-	dbgParseCmdLineArgs(argc, argv);
+  dbgParseCmdLineArgs(argc, argv);
 
-	FILE* f = fopen(dbgBinFileName, "rb");
-	if (!f) {
-		fprintf(stderr, "Failed to open binary file::");
-		perror("fopen(): ");
-		exit(1);
-	}
+  FILE *f = fopen(dbgBinFileName, "rb");
+  if (!f) {
+    fprintf(stderr, "Failed to open binary file::");
+    perror("fopen(): ");
+    exit(1);
+  }
 
-	dbgMEM6502 = (uint8_t*) calloc(0x10000, sizeof(uint8_t));
-	if (!dbgMEM6502) {
-		fprintf(stderr, "Failed to allocate memory for 6502 addrspace::");
-		perror("calloc(): ");
-		fclose(f);
-		exit(1);
-	}
+  dbgMEM6502 = (uint8_t *)calloc(0x10000, sizeof(uint8_t));
+  if (!dbgMEM6502) {
+    fprintf(stderr, "Failed to allocate memory for 6502 addrspace::");
+    perror("calloc(): ");
+    fclose(f);
+    exit(1);
+  }
 
   // Detect binary type from file size:
-  //   64KB (0x10000) = flat address space image (test binaries) -> load at $0000
-  //   anything else  = ROM-only binary                          -> load at $8000
+  //   64KB (0x10000) = flat address space image (test binaries) -> load at
+  //   $0000 anything else  = ROM-only binary                          -> load
+  //   at $8000
   fseek(f, 0, SEEK_END);
   long binSize = ftell(f);
   rewind(f);
@@ -144,51 +149,52 @@ void dbgInit(int argc, char** argv) {
   }
   fclose(f);
 
-	dbgUartInReg = 0;
-	dbgUartOutReg = 0;
-	dbgIxReg = 0;
-	dbgFlpLbaReg = 0;
-	dbgFlpDmaReg = 0;
-	dbgFlpSecReg = 0;
-	dbgUartInReg = 	read6502(UARTINREG_ADDR) 	| (read6502(UARTINREG_ADDR + 1) 	<< 8);
-	dbgUartOutReg = read6502(UARTOUTREG_ADDR) | (read6502(UARTOUTREG_ADDR + 1) 	<< 8);
-	dbgIxReg = 			read6502(IXFLAGREG_ADDR) 	| (read6502(IXFLAGREG_ADDR + 1) 	<< 8);
-	dbgFlpLbaReg = 	read6502(FLPLBAREG_ADDR) 	| (read6502(FLPLBAREG_ADDR + 1) 	<< 8);
-	dbgFlpDmaReg = 	read6502(FLPDMAREG_ADDR) 	| (read6502(FLPDMAREG_ADDR + 1) 	<< 8);
-	dbgFlpSecReg = 	read6502(FLPSECREG_ADDR) 	| (read6502(FLPSECREG_ADDR + 1) 	<< 8);
-	dbgInitDisplay();
-	for (int i = 0; i < dbgNofSymFiles; i++) {
-		dbgConsoleEcho("Loading debug symbols from %s\n", dbgSymFileNames[i]);
-		dbgReadDbgSyms(dbgSymFileNames[i]);
-	}
-	dbgConsoleEcho("Loading floppy img from %s\n", dbgFloppyFile);
+  dbgUartInReg = 0;
+  dbgUartOutReg = 0;
+  dbgIxReg = 0;
+  dbgFlpLbaReg = 0;
+  dbgFlpDmaReg = 0;
+  dbgFlpSecReg = 0;
+  dbgUartInReg = read6502(UARTINREG_ADDR) | (read6502(UARTINREG_ADDR + 1) << 8);
+  dbgUartOutReg =
+      read6502(UARTOUTREG_ADDR) | (read6502(UARTOUTREG_ADDR + 1) << 8);
+  dbgIxReg = read6502(IXFLAGREG_ADDR) | (read6502(IXFLAGREG_ADDR + 1) << 8);
+  dbgFlpLbaReg = read6502(FLPLBAREG_ADDR) | (read6502(FLPLBAREG_ADDR + 1) << 8);
+  dbgFlpDmaReg = read6502(FLPDMAREG_ADDR) | (read6502(FLPDMAREG_ADDR + 1) << 8);
+  dbgFlpSecReg = read6502(FLPSECREG_ADDR) | (read6502(FLPSECREG_ADDR + 1) << 8);
+  dbgInitDisplay();
+  for (int i = 0; i < dbgNofSymFiles; i++) {
+    dbgConsoleEcho("Loading debug symbols from %s\n", dbgSymFileNames[i]);
+    dbgReadDbgSyms(dbgSymFileNames[i]);
+  }
+  dbgConsoleEcho("Loading floppy img from %s\n", dbgFloppyFile);
   dbgConsoleEcho("Loaded %d symbols total\n", dbgNofSyms);
-	dbgConsoleEcho("uartInReg=%04hx\n", dbgUartInReg);
-	dbgConsoleEcho("uartOutReg=%04hx\n", dbgUartOutReg);
-	dbgConsoleEcho("dbgIxReg=%04hx\n", dbgIxReg);
-	dbgConsoleEcho("dbgFlpLbaReg=%04hx\n", dbgFlpLbaReg);
-	dbgConsoleEcho("dbgFlpDmaReg=%04hx\n", dbgFlpDmaReg);
-	dbgConsoleEcho("dbgFlpSecReg=%04hx\n", dbgFlpSecReg);
-	dbgReset();
-	dbgRunning = false;
-	dbgCurrentlyAtBp = false;
-	dbgInsideTerminal = false;
-	memset(dbgCmdBuf, 0, sizeof(dbgCmdBuf));
-	dbgSignal = SIG_NOSIG;
-	return;
+  dbgConsoleEcho("uartInReg=%04hx\n", dbgUartInReg);
+  dbgConsoleEcho("uartOutReg=%04hx\n", dbgUartOutReg);
+  dbgConsoleEcho("dbgIxReg=%04hx\n", dbgIxReg);
+  dbgConsoleEcho("dbgFlpLbaReg=%04hx\n", dbgFlpLbaReg);
+  dbgConsoleEcho("dbgFlpDmaReg=%04hx\n", dbgFlpDmaReg);
+  dbgConsoleEcho("dbgFlpSecReg=%04hx\n", dbgFlpSecReg);
+  dbgReset();
+  dbgRunning = false;
+  dbgCurrentlyAtBp = false;
+  dbgInsideTerminal = false;
+  memset(dbgCmdBuf, 0, sizeof(dbgCmdBuf));
+  dbgSignal = SIG_NOSIG;
+  return;
 }
 
 void dbgCleanup(void) {
-	free(dbgMEM6502);
-	for (size_t i = 0; i < dbgNofBps; i ++) {
-		if (dbgBpList[i].hasSymbol) {
-			free(dbgBpList[i].symbol);
-		}
-	}
-	free(dbgBpList);
-	free(dbgSymbols);
-	endwin();
-	return;
+  free(dbgMEM6502);
+  for (size_t i = 0; i < dbgNofBps; i++) {
+    if (dbgBpList[i].hasSymbol) {
+      free(dbgBpList[i].symbol);
+    }
+  }
+  free(dbgBpList);
+  free(dbgSymbols);
+  endwin();
+  return;
 }
 
 void dbgMainLoop(void) {
@@ -241,7 +247,7 @@ void dbgMainLoop(void) {
       break;
 
     case CMD_REMOVEBP:
-    	dbgRemoveBreakpoint(cmdtoks, cmdtoklen);
+      dbgRemoveBreakpoint(cmdtoks, cmdtoklen);
 
     default:
       break;
@@ -252,10 +258,11 @@ void dbgMainLoop(void) {
 }
 
 static void dbgParseCmdLineArgs(int argc, char **argv) {
-	if (argc < 2) {
+  if (argc < 2) {
     fprintf(stdout, "usage: %s <binary> [flags]\n", argv[0]);
     fprintf(stdout, "\tflags:-\n");
-    fprintf(stdout, "\t\t-d <filename>: load debug symbols (ld65 --dbgfile .dbg file, repeatable)\n");
+    fprintf(stdout, "\t\t-d <filename>: load debug symbols (ld65 --dbgfile "
+                    ".dbg file, repeatable)\n");
     fprintf(stdout, "\t\t-s <filename>: load source code\n");
     fprintf(stdout, "\t\t-f <filename>: load floppy image\n");
     fprintf(stdout, "\t\t-u <type[tui/gui]>: interface type\n");
@@ -323,8 +330,8 @@ static void dbgParseCmdLineArgs(int argc, char **argv) {
 }
 
 static uint16_t dbgReadHexU16(void) {
-	char buf[32];
-	memset(buf, 0, sizeof(buf));
+  char buf[32];
+  memset(buf, 0, sizeof(buf));
   char *end;
   unsigned long value = 0;
 
@@ -351,24 +358,26 @@ static uint16_t dbgReadHexU16(void) {
   return (uint16_t)value;
 }
 
-static void dbgShowMem(uint16_t startaddr, uint16_t endaddr){
+static void dbgShowMem(uint16_t startaddr, uint16_t endaddr) {
   uint16_t addr = startaddr;
   while (1) {
     dbgConsoleEcho("%04X: ", addr);
     for (uint16_t offset = 0; offset < 16; offset++) {
       uint16_t cur = addr + offset;
-      if (cur < addr || cur > endaddr) break;
+      if (cur < addr || cur > endaddr)
+        break;
       dbgConsoleEcho("%02X ", read6502(cur));
     }
     dbgConsoleEcho("\n");
-    if (addr > endaddr - 16) break;
+    if (addr > endaddr - 16)
+      break;
     addr += 16;
   }
   return;
 }
 
 static void dbgReset(void) {
-	reset6502();
+  reset6502();
   write6502(dbgIxReg, 0x00);
   dbgConsoleEcho("\n");
   dbgRunning = true;
@@ -378,7 +387,8 @@ static void dbgReset(void) {
 }
 
 static void dbgSendToUart(uint8_t k) {
-	while (read6502(dbgIxReg) & 0x02) { } // Wait as long as bit 2 is set
+  while (read6502(dbgIxReg) & 0x02) {
+  } // Wait as long as bit 2 is set
   write6502(dbgUartInReg, k);
   write6502(dbgIxReg, read6502(dbgIxReg) | 0x02); // Set bit 2 again
   irq6502();
@@ -386,13 +396,14 @@ static void dbgSendToUart(uint8_t k) {
 }
 
 static uint8_t dbgReadFromUart(void) {
-	uint8_t r = read6502(dbgUartOutReg);
-  write6502(dbgIxReg, read6502(dbgIxReg) & 0xFE); // Clear b0 to allow further put_c calls
+  uint8_t r = read6502(dbgUartOutReg);
+  write6502(dbgIxReg,
+            read6502(dbgIxReg) & 0xFE); // Clear b0 to allow further put_c calls
   return r;
 }
 
 static int dbgRunProgCont(void) {
-	signal(SIGINT, dbgSigintHandlerTerminal);
+  signal(SIGINT, dbgSigintHandlerTerminal);
 
   int atBreakpoint = -1;
   dbgInsideTerminal = true;
@@ -412,9 +423,10 @@ static int dbgRunProgCont(void) {
     }
 
     int k = dbgTerminalGetchar();
-    if (k != -1) dbgSendToUart((uint8_t)k);
+    if (k != -1)
+      dbgSendToUart((uint8_t)k);
 
-    int instrlen=0;
+    int instrlen = 0;
     char line[64];
     memset(line, 0, sizeof(line));
     dbgDisasmInstrFromPc(pc, read6502, line);
@@ -440,13 +452,16 @@ static int dbgRunProgCont(void) {
 }
 
 static void dbgDisplayHelp(void) {
-	dbgConsoleEcho("Help : -\n");
-  dbgConsoleEcho( "b [./addr/symbol]: Create a breakpoint at [curr instr/addr/symbol]\n");
+  dbgConsoleEcho("Help : -\n");
+  dbgConsoleEcho(
+      "b [./addr/symbol]: Create a breakpoint at [curr instr/addr/symbol]\n");
   dbgConsoleEcho("c: Continue the program from current state\n");
   dbgConsoleEcho("d [n]: Disassemble next 5/[n] instructions\n");
   dbgConsoleEcho("h: Display this help\n");
   dbgConsoleEcho("l: List all breakpoints\n");
-  dbgConsoleEcho( "m [start] [end]: Display memory contents from a start location to an " "end location\n");
+  dbgConsoleEcho(
+      "m [start] [end]: Display memory contents from a start location to an "
+      "end location\n");
   dbgConsoleEcho("r: Display the register contents\n");
   dbgConsoleEcho("s [n]: Step the program with one/[n] instruction\n");
   dbgConsoleEcho("\n");
@@ -454,7 +469,7 @@ static void dbgDisplayHelp(void) {
 }
 
 static void dbgDisasmInstr(char **cmdtoks, size_t cmdtoksiz) {
-	int nofLines = 5;
+  int nofLines = 5;
   if (cmdtoksiz < 2) {
     nofLines = 5;
   } else if (!dbgStrToInt(cmdtoks[1], &nofLines)) {
@@ -496,7 +511,8 @@ static void dbgAddBp(char **cmdtoks, size_t cmdtoksiz) {
   // Symbol given
   for (int i = 0; i < dbgNofSyms; i++) {
     if (strcmp(cmdtoks[1], dbgSymbols[i].symbolname) == 0) {
-      dbgConsoleEcho("\tSetting new breakpoint at name=%s, addr=0x%04hx\n", dbgSymbols[i].symbolname, dbgSymbols[i].addr);
+      dbgConsoleEcho("\tSetting new breakpoint at name=%s, addr=0x%04hx\n",
+                     dbgSymbols[i].symbolname, dbgSymbols[i].addr);
       dbgSetBp(dbgSymbols[i].addr, dbgSymbols[i].symbolname);
       return;
     }
@@ -508,7 +524,7 @@ static void dbgAddBp(char **cmdtoks, size_t cmdtoksiz) {
 }
 
 static void dbgRunDbgCont(void) {
-	noecho();
+  noecho();
   dbgSignal = SIG_NOSIG;
   dbgConsoleEcho("\n\tGoing into continuous execution\n");
   int brkpt = dbgRunProgCont();
@@ -530,7 +546,9 @@ static void dbgRunDbgCont(void) {
     char buf[32];
     memset(buf, 0, sizeof(buf));
     dbgDisasmInstrFromPc(pc, read6502, buf);
-    dbgConsoleEcho("\tBreakpoint [%d]:%s at addr %04hx: %s\n", brkpt, (dbgBpList[brkpt].hasSymbol) ? dbgBpList[brkpt].symbol : "", dbgBpList[brkpt].address, buf);
+    dbgConsoleEcho("\tBreakpoint [%d]:%s at addr %04hx: %s\n", brkpt,
+                   (dbgBpList[brkpt].hasSymbol) ? dbgBpList[brkpt].symbol : "",
+                   dbgBpList[brkpt].address, buf);
     dbgCurrentlyAtBp = true;
   }
 
@@ -549,7 +567,8 @@ static void dbgListBps(void) {
     memset(line, 0, sizeof(line));
     dbgDisasmInstrFromPc(dbgBpList[i].address, read6502, line);
     if (dbgBpList[i].hasSymbol) {
-      dbgConsoleEcho("\t%s:\t0x%04hx\t%s\n", dbgBpList[i].symbol, dbgBpList[i].address, line);
+      dbgConsoleEcho("\t%s:\t0x%04hx\t%s\n", dbgBpList[i].symbol,
+                     dbgBpList[i].address, line);
     } else {
       dbgConsoleEcho("\t\t0x%04hx\t%s\n", dbgBpList[i].address, line);
     }
@@ -578,7 +597,7 @@ static void dbgPrintMemRange(char *cmdtoks[], size_t cmdtoklen) {
 
   // Start addr given but stop addr not given
   if (cmdtoklen == 2) {
-    char* end_;
+    char *end_;
     errno = 0;
     startAddr = strtoul(cmdtoks[1], &end_, 0);
     if (errno != 0 || end_ == cmdtoks[1]) {
@@ -596,7 +615,7 @@ static void dbgPrintMemRange(char *cmdtoks[], size_t cmdtoklen) {
   }
 
   // Both addresses given
-  char* end_, *end__;
+  char *end_, *end__;
   startAddr = strtoul(cmdtoks[1], &end_, 0);
   errno = 0;
   if (errno != 0 || end_ == cmdtoks[1]) {
@@ -614,12 +633,13 @@ static void dbgPrintMemRange(char *cmdtoks[], size_t cmdtoklen) {
 }
 
 static void dbgPrintRegisters(void) {
-	dbgConsoleEcho( "PC=%04hx SP=%04hx A=%04hx X=%04hx Y=%04hx status=%04hx\n", pc, sp, a, x, y, status);
-	return;
+  dbgConsoleEcho("PC=%04hx SP=%02hx A=%02hx X=%02hx Y=%02hx status=%02hx\n", pc,
+                 sp, a, x, y, status);
+  return;
 }
 
 static void dbgStep6502(char *cmdtoks[], size_t cmdtoksize) {
-	int nsteps = 1;
+  int nsteps = 1;
 
   if (cmdtoksize < 2) {
     nsteps = 1;
@@ -648,7 +668,9 @@ static void dbgStep6502(char *cmdtoks[], size_t cmdtoksize) {
     int bpNum = -1;
     if (dbgCheckIfAtBp(pc, instrlen, &bpNum)) {
       dbgConsoleEcho("\tAt Breakpoint [%d] %s: %04hx   %s\n", bpNum,
-      (dbgBpList[bpNum].hasSymbol) ? dbgBpList[bpNum].symbol : "", pc, line);
+                     (dbgBpList[bpNum].hasSymbol) ? dbgBpList[bpNum].symbol
+                                                  : "",
+                     pc, line);
       dbgCurrentlyAtBp = true;
       return;
     }
@@ -669,21 +691,21 @@ static int dbgPerformChecks(void) {
     return SIG_PROGRAM_EXITED;
   }
 
-	// Control return request
-	if (res & 0x40) {
+  // Control return request
+  if (res & 0x40) {
     return SIG_CONTROL_RETURNED;
   }
 
-	// Floppy Read Request
+  // Floppy Read Request
   if (res & 0b00100000) {
- 		dbgFloppyRead();
+    dbgFloppyRead();
     return SIG_FLOPPY_READ;
   }
 
   // Floppy Write Request
   if (res & 0b00010000) {
-		dbgFloppyWrite();
-  	return SIG_FLOPPY_WRITE;
+    dbgFloppyWrite();
+    return SIG_FLOPPY_WRITE;
   }
 
   // Terminal text output request
@@ -711,19 +733,18 @@ static bool dbgCheckIfAtBp(uint16_t pc, int instrlen, int *bpnum) {
 }
 
 static void dbgSigintHandlerTerminal(int num) {
-	dbgSignal = SIG_INTERRUPT_TERMINAL;
-	dbgInsideTerminal = false;
+  dbgSignal = SIG_INTERRUPT_TERMINAL;
+  dbgInsideTerminal = false;
   signal(SIGINT, SIG_DFL); // Reset the sigint to quit
   dbgConsoleEcho("\tSIG_INTERRUPT_TERMINAL\n");
   return;
 }
 
-static void dbgSigintHandlerConsole(int num) {
-	return;
-}
+static void dbgSigintHandlerConsole(int num) { return; }
 
-static bool dbg_strStartsWith(const char *s1, size_t s1len, const char *s2, size_t s2len) {
-	if (s1len > s2len)
+static bool dbg_strStartsWith(const char *s1, size_t s1len, const char *s2,
+                              size_t s2len) {
+  if (s1len > s2len)
     return false;
 
   for (int i = 0; i < s1len; i++) {
@@ -734,7 +755,7 @@ static bool dbg_strStartsWith(const char *s1, size_t s1len, const char *s2, size
   return true;
 }
 
-static bool dbg_strIsAllCaps(const char* s, size_t slen) {
+static bool dbg_strIsAllCaps(const char *s, size_t slen) {
   for (int i = 0; i < slen; i++) {
     if (isdigit(s[i]))
       continue;
@@ -759,7 +780,8 @@ static void dbgSetBp(uint16_t addr, char symbol[MAX_SYMBOL_LENGTH]) {
 
   if ((double)(dbgNofBps / dbgBpListSize) > 0.7f) {
     dbgBpListSize *= 2;
-    breakpoint_t *tmp = realloc(dbgBpList, dbgBpListSize * sizeof(breakpoint_t));
+    breakpoint_t *tmp =
+        realloc(dbgBpList, dbgBpListSize * sizeof(breakpoint_t));
     if (!tmp) {
       dbgConsoleEcho("setBreakpoint [fatal]: realloc:");
       perror(" ");
@@ -787,7 +809,7 @@ static void dbgSetBp(uint16_t addr, char symbol[MAX_SYMBOL_LENGTH]) {
 }
 
 static void dbgRmvBp(uint16_t bp) {
-	int l = 0, r = dbgNofBps - 1;
+  int l = 0, r = dbgNofBps - 1;
   int mid = (l + r) / 2;
 
   while (dbgBpList[mid].address != bp && l < r) {
@@ -801,7 +823,8 @@ static void dbgRmvBp(uint16_t bp) {
     return;
   }
   if (dbgBpList[mid].address == bp) {
-    dbgBpList[mid].address = 0xFFFF; // Removed breakpoint because in 6502 mem 0xFFFF is irq's vector
+    dbgBpList[mid].address =
+        0xFFFF; // Removed breakpoint because in 6502 mem 0xFFFF is irq's vector
     // Need to take care of this somehow later
   }
   return;
@@ -815,7 +838,8 @@ static void dbgReadDbgSyms(const char *fname) {
   // ld65 uses a tab between the record type and fields, e.g.:
   //   sym\tid=N,name="symname",...,val=0xXXXX,...,type=lab
   // We extract name and val from every sym line where type=lab.
-  if (!fname) return;
+  if (!fname)
+    return;
 
   FILE *f = fopen(fname, "r");
   if (!f) {
@@ -827,41 +851,52 @@ static void dbgReadDbgSyms(const char *fname) {
   int capacity = (dbgSymbols == NULL || dbgNofSyms == 0) ? 64 : dbgNofSyms * 2;
   if (dbgSymbols == NULL) {
     dbgSymbols = malloc(capacity * sizeof(dbg_symbol_t));
-    if (!dbgSymbols) { fclose(f); return; }
+    if (!dbgSymbols) {
+      fclose(f);
+      return;
+    }
   }
 
   char line[512];
   while (fgets(line, sizeof(line), f)) {
     // ld65 separates record type from fields with a tab
-    if (strncmp(line, "sym", 3) != 0 || (line[3] != '\t' && line[3] != ' ')) continue;
+    if (strncmp(line, "sym", 3) != 0 || (line[3] != '\t' && line[3] != ' '))
+      continue;
     // Only load code labels (type=lab), skip equ/import etc.
-    if (strstr(line, "type=lab") == NULL) continue;
+    if (strstr(line, "type=lab") == NULL)
+      continue;
 
     // Extract name="..."
     char symname[MAX_SYMBOL_LENGTH];
     char *nameptr = strstr(line, "name=\"");
-    if (!nameptr) continue;
+    if (!nameptr)
+      continue;
     nameptr += 6; // skip: name="
     int ni = 0;
     while (*nameptr && *nameptr != '"' && ni < MAX_SYMBOL_LENGTH - 1)
       symname[ni++] = *nameptr++;
     symname[ni] = '\0';
-    if (ni == 0) continue;
+    if (ni == 0)
+      continue;
 
     // Extract val=0xXXXX
     char *valptr = strstr(line, "val=0x");
-    if (!valptr) continue;
+    if (!valptr)
+      continue;
     unsigned int addr;
-    if (sscanf(valptr, "val=0x%x", &addr) != 1) continue;
+    if (sscanf(valptr, "val=0x%x", &addr) != 1)
+      continue;
 
     // Skip all-caps hardware EQUs (UARTINREG, IXFLAGREG, etc.)
-    if (dbgStrIsAllCaps(symname)) continue;
+    if (dbgStrIsAllCaps(symname))
+      continue;
 
     // Grow array if needed
     if (dbgNofSyms >= capacity) {
       capacity *= 2;
       dbg_symbol_t *tmp = realloc(dbgSymbols, capacity * sizeof(dbg_symbol_t));
-      if (!tmp) break;
+      if (!tmp)
+        break;
       dbgSymbols = tmp;
     }
 
@@ -875,7 +910,7 @@ static void dbgReadDbgSyms(const char *fname) {
 }
 
 static int dbgStrToInt(const char *s, int *out) {
-	char *end;
+  char *end;
   long val;
 
   errno = 0;
@@ -894,8 +929,9 @@ static int dbgStrToInt(const char *s, int *out) {
   return 1;
 }
 
-static int dbgGetCmdTokens(char *cmdString, char *tokenArray[], size_t tokenArraySize) {
-	size_t count = 0;
+static int dbgGetCmdTokens(char *cmdString, char *tokenArray[],
+                           size_t tokenArraySize) {
+  size_t count = 0;
   char *token;
 
   if (!cmdString || !tokenArray || tokenArraySize == 0)
@@ -913,7 +949,7 @@ static int dbgGetCmdTokens(char *cmdString, char *tokenArray[], size_t tokenArra
 }
 
 static command_t dbgParseCommand(const char *cmd) {
-	if (!strcmp(cmd, "b"))
+  if (!strcmp(cmd, "b"))
     return CMD_BREAKPOINT;
   if (!strcmp(cmd, "bp"))
     return CMD_BREAKPOINT;
@@ -1014,7 +1050,7 @@ static command_t dbgParseCommand(const char *cmd) {
 }
 
 static void dbgInitDisplay(void) {
-	initscr();
+  initscr();
   keypad(stdscr, TRUE);
   cbreak();
   nl();
@@ -1024,8 +1060,10 @@ static void dbgInitDisplay(void) {
   dbgDbgWin.winh = dbgMainWinMaxLines - (dbgMainWinMaxLines / 2) - 3;
   dbgDbgWin.winx = 1;
   dbgDbgWin.winy = (dbgMainWinMaxLines / 2) + 2;
-  dbgDbgWin.winbg = newwin(dbgDbgWin.winh + 2, dbgDbgWin.winw + 2, dbgDbgWin.winy - 1, dbgDbgWin.winx - 1);
-  dbgDbgWin.win = newwin(dbgDbgWin.winh, dbgDbgWin.winw, dbgDbgWin.winy, dbgDbgWin.winx);
+  dbgDbgWin.winbg = newwin(dbgDbgWin.winh + 2, dbgDbgWin.winw + 2,
+                           dbgDbgWin.winy - 1, dbgDbgWin.winx - 1);
+  dbgDbgWin.win =
+      newwin(dbgDbgWin.winh, dbgDbgWin.winw, dbgDbgWin.winy, dbgDbgWin.winx);
   box(dbgDbgWin.winbg, 0, 0);
   scrollok(dbgDbgWin.win, TRUE);
   keypad(dbgDbgWin.win, TRUE);
@@ -1035,8 +1073,10 @@ static void dbgInitDisplay(void) {
   dbgTermWin.winh = dbgMainWinMaxLines - (dbgMainWinMaxLines / 2) - 2;
   dbgTermWin.winx = 1;
   dbgTermWin.winy = 1;
-  dbgTermWin.winbg = newwin(dbgTermWin.winh + 2, dbgTermWin.winw + 2, dbgTermWin.winy - 1, dbgTermWin.winx - 1);
-  dbgTermWin.win = newwin(dbgTermWin.winh, dbgTermWin.winw, dbgTermWin.winy, dbgTermWin.winx);
+  dbgTermWin.winbg = newwin(dbgTermWin.winh + 2, dbgTermWin.winw + 2,
+                            dbgTermWin.winy - 1, dbgTermWin.winx - 1);
+  dbgTermWin.win = newwin(dbgTermWin.winh, dbgTermWin.winw, dbgTermWin.winy,
+                          dbgTermWin.winx);
   box(dbgTermWin.winbg, 0, 0);
   scrollok(dbgTermWin.win, TRUE);
   nodelay(dbgTermWin.win, TRUE);
@@ -1047,8 +1087,10 @@ static void dbgInitDisplay(void) {
   dbgSrcWin.winh = dbgMainWinMaxLines - (dbgMainWinMaxLines / 2) - 2;
   dbgSrcWin.winx = dbgTermWin.winx + dbgTermWin.winw + 2;
   dbgSrcWin.winy = 1;
-  dbgSrcWin.winbg = newwin(dbgSrcWin.winh + 2, dbgSrcWin.winw + 2, dbgSrcWin.winy - 1, dbgSrcWin.winx - 1);
-  dbgSrcWin.win = newwin(dbgSrcWin.winh, dbgSrcWin.winw, dbgSrcWin.winy, dbgSrcWin.winx);
+  dbgSrcWin.winbg = newwin(dbgSrcWin.winh + 2, dbgSrcWin.winw + 2,
+                           dbgSrcWin.winy - 1, dbgSrcWin.winx - 1);
+  dbgSrcWin.win =
+      newwin(dbgSrcWin.winh, dbgSrcWin.winw, dbgSrcWin.winy, dbgSrcWin.winx);
   box(dbgSrcWin.winbg, 0, 0);
   scrollok(dbgSrcWin.win, TRUE);
   keypad(dbgSrcWin.win, TRUE);
@@ -1056,71 +1098,92 @@ static void dbgInitDisplay(void) {
   wrefresh(dbgSrcWin.win);
 }
 
-static char dbgConsoleGetchar(void) {
-	return wgetch(dbgDbgWin.win);
-}
+static char dbgConsoleGetchar(void) { return wgetch(dbgDbgWin.win); }
 
 static void dbgConsoleEcho(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    int y = getcury(dbgDbgWin.win);
-    int x = getcurx(dbgDbgWin.win);
-    wmove(dbgDbgWin.win, y, x);
-    vw_printw(dbgDbgWin.win, fmt, args);
-    va_end(args);
-    wrefresh(dbgDbgWin.win);
+  va_list args;
+  va_start(args, fmt);
+  int y = getcury(dbgDbgWin.win);
+  int x = getcurx(dbgDbgWin.win);
+  wmove(dbgDbgWin.win, y, x);
+  vw_printw(dbgDbgWin.win, fmt, args);
+  va_end(args);
+  wrefresh(dbgDbgWin.win);
 }
 
 static void dbgConsoleGetCmd(char *buf, size_t bufsiz) {
-	dbgConsoleEcho(">>");
+  dbgConsoleEcho(">>");
   wgetnstr(dbgDbgWin.win, buf, bufsiz);
   wrefresh(dbgDbgWin.win);
   return;
 }
 
 static void dbgTerminalPutchar(char c) {
-	waddch(dbgTermWin.win, (c == '\r') ? '\n' : c);
+  waddch(dbgTermWin.win, (c == '\r') ? '\n' : c);
   return;
 }
 
-static int dbgTerminalGetchar(void) {
-  return (int)wgetch(dbgTermWin.win);
+static int dbgTerminalGetchar(void) { return (int)wgetch(dbgTermWin.win); }
+
+static int dbgDisasmInstrFromPc(uint16_t pc, uint8_t (*read)(uint16_t),
+                                char *out) {
+  uint8_t opcode = read(pc);
+  const opcode_t *op = &optable[opcode];
+
+  uint8_t b1 = read(pc + 1);
+  uint8_t b2 = read(pc + 2);
+  uint16_t addr = (uint16_t)(b1 | (b2 << 8));
+
+  switch (op->mode) {
+  case AM_IMP:
+    sprintf(out, "%s", op->mnemonic);
+    break;
+  case AM_ACC:
+    sprintf(out, "%s A", op->mnemonic);
+    break;
+  case AM_IMM:
+    sprintf(out, "%s #$%02X", op->mnemonic, b1);
+    break;
+  case AM_ZP:
+    sprintf(out, "%s $%02X", op->mnemonic, b1);
+    break;
+  case AM_ZPX:
+    sprintf(out, "%s $%02X,X", op->mnemonic, b1);
+    break;
+  case AM_ZPY:
+    sprintf(out, "%s $%02X,Y", op->mnemonic, b1);
+    break;
+  case AM_ABS:
+    sprintf(out, "%s $%04X", op->mnemonic, addr);
+    break;
+  case AM_ABSX:
+    sprintf(out, "%s $%04X,X", op->mnemonic, addr);
+    break;
+  case AM_ABSY:
+    sprintf(out, "%s $%04X,Y", op->mnemonic, addr);
+    break;
+  case AM_IND:
+    sprintf(out, "%s ($%04X)", op->mnemonic, addr);
+    break;
+  case AM_INDX:
+    sprintf(out, "%s ($%02X,X)", op->mnemonic, b1);
+    break;
+  case AM_INDY:
+    sprintf(out, "%s ($%02X),Y", op->mnemonic, b1);
+    break;
+  case AM_REL: {
+    int8_t off = (int8_t)b1;
+    uint16_t target = pc + 2 + off;
+    sprintf(out, "%s $%04X", op->mnemonic, target);
+    break;
+  }
+  }
+
+  return op->bytes;
 }
 
-static int dbgDisasmInstrFromPc(uint16_t pc, uint8_t (*read)(uint16_t), char *out) {
-    uint8_t opcode = read(pc);
-    const opcode_t *op = &optable[opcode];
-
-    uint8_t b1 = read(pc + 1);
-    uint8_t b2 = read(pc + 2);
-    uint16_t addr = (uint16_t)(b1 | (b2 << 8));
-
-    switch (op->mode) {
-        case AM_IMP:  sprintf(out, "%s", op->mnemonic); break;
-        case AM_ACC:  sprintf(out, "%s A", op->mnemonic); break;
-        case AM_IMM:  sprintf(out, "%s #$%02X", op->mnemonic, b1); break;
-        case AM_ZP:   sprintf(out, "%s $%02X", op->mnemonic, b1); break;
-        case AM_ZPX:  sprintf(out, "%s $%02X,X", op->mnemonic, b1); break;
-        case AM_ZPY:  sprintf(out, "%s $%02X,Y", op->mnemonic, b1); break;
-        case AM_ABS:  sprintf(out, "%s $%04X", op->mnemonic, addr); break;
-        case AM_ABSX: sprintf(out, "%s $%04X,X", op->mnemonic, addr); break;
-        case AM_ABSY: sprintf(out, "%s $%04X,Y", op->mnemonic, addr); break;
-        case AM_IND:  sprintf(out, "%s ($%04X)", op->mnemonic, addr); break;
-        case AM_INDX: sprintf(out, "%s ($%02X,X)", op->mnemonic, b1); break;
-        case AM_INDY: sprintf(out, "%s ($%02X),Y", op->mnemonic, b1); break;
-        case AM_REL: {
-            int8_t off = (int8_t)b1;
-            uint16_t target = pc + 2 + off;
-            sprintf(out, "%s $%04X", op->mnemonic, target);
-            break;
-        }
-    }
-
-    return op->bytes;
-}
-
-static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz){
-	// No symbol/addr, set at curret pc
+static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz) {
+  // No symbol/addr, set at curret pc
   if (cmdtoksiz < 2) {
     dbgConsoleEcho("\tusage: rb(or alternate command) <symbol/0x(address)>\n");
     return;
@@ -1138,7 +1201,8 @@ static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz){
   // Symbol given
   for (int i = 0; i < dbgNofSyms; i++) {
     if (strcmp(cmdtoks[1], dbgSymbols[i].symbolname) == 0) {
-      dbgConsoleEcho("\tRemoved breakpoint at name=%s, addr=0x%04hx\n", dbgSymbols[i].symbolname, dbgSymbols[i].addr);
+      dbgConsoleEcho("\tRemoved breakpoint at name=%s, addr=0x%04hx\n",
+                     dbgSymbols[i].symbolname, dbgSymbols[i].addr);
       dbgRmvBp(dbgSymbols[i].addr);
       return;
     }
@@ -1149,40 +1213,43 @@ static void dbgRemoveBreakpoint(char **cmdtoks, size_t cmdtoksiz){
 }
 
 static void dbgFloppyRead() {
-  if (!dbgFloppyFile) { 
+  if (!dbgFloppyFile) {
     return;
   }
-	// uint8_t sectorCount = read6502(dbgFlpSecReg);
-	uint16_t dmaAddr = read6502(dbgFlpDmaReg) | read6502(dbgFlpDmaReg + 1) << 8;
+  uint8_t sectorCount = read6502(dbgFlpSecReg); // was commented out
+  uint16_t dmaAddr = read6502(dbgFlpDmaReg) | read6502(dbgFlpDmaReg + 1) << 8;
   uint8_t lbaAddr = read6502(dbgFlpLbaReg);
-  uint8_t buf[256];
-  FILE* f = fopen(dbgFloppyFile, "rb");
+  size_t totalBytes = (size_t)sectorCount * 256; // was hardcoded to 256
+  uint8_t *buf = malloc(totalBytes); 
+  if (!buf)
+    return;
+  FILE *f = fopen(dbgFloppyFile, "rb");
   fseek(f, lbaAddr * 256, SEEK_SET);
-  /*int bytes_read = */fread(buf, 1, sizeof(buf), f);
-  memcpy(&dbgMEM6502[dmaAddr], buf, sizeof(buf));
+  fread(buf, 1, totalBytes, f);
+  memcpy(&dbgMEM6502[dmaAddr], buf, totalBytes);
+  free(buf);
   fclose(f);
-
   write6502(dbgIxReg, (read6502(dbgIxReg) & 0b11000111) | 0b00001000);
-  // dbgConsoleEcho("DMA=%04X LBA=%02X\n", dmaAddr, lbaAddr);
   irq6502();
 }
 
 static void dbgFloppyWrite() {
-  // dbgConsoleEcho("\nStarting floppy write\n");
-  if (!dbgFloppyFile) { 
-    // dbgConsoleEcho("\nFloppy write failed, no file\n");
+  if (!dbgFloppyFile) {
     return;
   }
-	// uint8_t sectorCount = read6502(dbgFlpSecReg);
-	uint16_t dmaAddr = read6502(dbgFlpDmaReg) | read6502(dbgFlpDmaReg + 1) << 8;
+  uint8_t sectorCount = read6502(dbgFlpSecReg); // was commented out
+  uint16_t dmaAddr = read6502(dbgFlpDmaReg) | read6502(dbgFlpDmaReg + 1) << 8;
   uint8_t lbaAddr = read6502(dbgFlpLbaReg);
-  char buf[256];
-  memcpy(buf, &dbgMEM6502[dmaAddr], sizeof(buf));
-  FILE* f = fopen(dbgFloppyFile, "rb+");
+  size_t totalBytes = (size_t)sectorCount * 256; // was hardcoded to 256
+  uint8_t *buf = malloc(totalBytes);
+  if (!buf)
+    return;
+  memcpy(buf, &dbgMEM6502[dmaAddr], totalBytes);
+  FILE *f = fopen(dbgFloppyFile, "rb+");
   fseek(f, lbaAddr * 256, SEEK_SET);
-  /*int bytes_written = */fwrite(buf, 1, sizeof(buf), f);
+  fwrite(buf, 1, totalBytes, f);
+  free(buf);
   fclose(f);
   write6502(dbgIxReg, (read6502(dbgIxReg) & 0b11000111) | 0b00001000);
   irq6502();
-  // dbgConsoleEcho("\nFloppy write done\n");
 }
