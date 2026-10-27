@@ -21,6 +21,10 @@
 ;   $FF00–$FF0F   Device address table (16 B — 8 two-byte LE pointers)
 ;   $FFFA–$FFFF   CPU vectors
 ;
+; This file is the single source of truth for addresses: the
+; emulator learns where each device register is from the DEVTABLE
+; (built from the constants below), so moving a device only
+; requires changing it here.
 ; ============================================================
 
 .ifndef VARS_INCLUDED
@@ -35,6 +39,9 @@ KERNEL_LOAD_ADDR    = $0B6A
 
 ; ----------------------------------------
 ; ZERO PAGE — BIOS-owned ($00–$0F)
+; STRPTR / CMPPTR / JMPPTR are shared scratch pointers: they are
+; the argument registers for BIOS calls and are also used freely
+; by the kernel, so treat them as clobbered by any BIOS call.
 ; ----------------------------------------
 STRPTR              = $00   ; 2-byte string pointer     (lo=$00, hi=$01)
 CMPPTR              = $02   ; 2-byte compare pointer    (lo=$02, hi=$03)

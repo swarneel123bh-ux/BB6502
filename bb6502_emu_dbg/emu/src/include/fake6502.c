@@ -1,3 +1,32 @@
+// ============================================================================
+// fake6502.c — 6502 CPU core + BB6502 machine glue
+//
+// The CPU core (addressing modes, opcode handlers, tick table) is Mike
+// Chambers' public-domain "Fake6502" emulator, left essentially unchanged.
+// It is an NMOS 6502 with undocumented opcodes and BCD disabled (see the
+// UNDOCUMENTED / NES_CPU defines in fake6502.h) — it does NOT implement the
+// 65C02 extensions, even though ca65 is invoked with --cpu 65c02.
+//
+// BB6502-specific additions in this file:
+//   - Shared machine state: mem6502, running, devicesReady, irqPending and
+//     one mutex + condition variable per device thread.
+//   - read6502()/write6502(): memory access with MMIO dispatch. Accesses to
+//     device registers take that device's lock, and writes of a command
+//     wake the device's worker thread.
+//   - cpuLoop(): the CPU thread. Runs instructions forever and delivers
+//     pending IRQs between instructions.
+//   - fake6502Init(): loads the ROM image, starts every device, spawns the
+//     CPU thread and hands the main thread to the SDL render loop.
+//   - dbgParseCmdLineArgs(): command-line parsing (shared with the legacy
+//     debugger; only <binary> and -f are actually used here).
+//
+// Threading model:
+//   main thread  → SDL event + render loop (dispgfx.c), required on macOS
+//   CPU thread   → cpuLoop(), steps the 6502
+//   one worker   → per device (floppy, kbd, disptext, dispgfx commands)
+//   Device threads never touch CPU registers; they set irqPending and the
+//   CPU thread performs the actual interrupt.
+// ============================================================================
 #include <string.h>
 #include "fake6502.h"
 #include <pthread.h>
@@ -8,7 +37,10 @@
 
 void dbgParseCmdLineArgs(int argc, char **argv);
 
-// Variables
+// ─── Command-line state (filled by dbgParseCmdLineArgs) ─────────────────────
+// Only dbgBinFileName and dbgFloppyFile are used by this emulator; the
+// symbol/source/UI options are parsed for compatibility with the legacy
+// debugger but ignored.
 static char dbgCmdBuf[100], *dbgBinFileName, *dbgSrcFileName, *dbgFloppyFile;
 #define MAX_SYM_FILES 16
 static char *dbgSymFileNames[MAX_SYM_FILES];
@@ -28,7 +60,10 @@ uint32_t clockticks6502 = 0, clockgoal6502 = 0;
 uint8_t callexternal = 0;
 void (*loopexternal)(void);
 
-// Mutex + condition variable
+// ─── Per-device synchronisation ──────────────────────────────────────────────
+// Each lock guards that device's registers inside mem6502. Each condition
+// variable is how write6502() wakes the device's sleeping worker thread.
+// (kbdCond is currently unused: the keyboard worker polls stdin instead.)
 pthread_mutex_t kbdLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t kbdCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t floppyLock = PTHREAD_MUTEX_INITIALIZER;
@@ -38,7 +73,11 @@ pthread_cond_t disptextCond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t dispgfxLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t dispgfxCond = PTHREAD_COND_INITIALIZER;
 
-// Memory and shared flags
+// ─── Memory and shared flags ─────────────────────────────────────────────────
+// mem6502:      the full 64 KB address space (RAM, MMIO registers and ROM all
+//               live here; ROM is not write-protected).
+// running:      cleared to shut everything down (ESC, window close).
+// devicesReady: set once every device has read its register addresses.
 uint8_t *mem6502 = NULL;
 volatile _Atomic int running = 1;
 volatile int devicesReady = 0;
@@ -47,6 +86,8 @@ volatile int devicesReady = 0;
 // Silicon).
 volatile _Atomic int irqPending = 0;
 
+// Lock / unlock every device at once (currently unused; kept for a future
+// debugger that needs to pause all devices to inspect memory).
 #define pthrd_lock_all()                                                       \
   do {                                                                         \
     pthread_mutex_lock(&kbdLock);                                              \
@@ -63,11 +104,17 @@ volatile _Atomic int irqPending = 0;
     pthread_mutex_unlock(&dispgfxLock);                                        \
   } while (0);
 
-// ─── MMIO dispatch
-// ──────────────────────────────────────────────────────────── Device register
-// addresses are loaded at runtime from the device table. We guard with
-// devicesReady so binary loading (before init) doesn't false-match against the
-// zero-initialized globals.
+// ─── MMIO dispatch ───────────────────────────────────────────────────────────
+// Device register addresses are loaded at runtime from the device table at
+// $FF00 (see fake6502.h). We guard with devicesReady so binary loading
+// (before init) doesn't false-match against the zero-initialized globals.
+//
+// Every access to a known device register is done under that device's lock.
+// On writes, a non-zero command wakes the corresponding worker thread via its
+// condition variable. Everything else is plain RAM.
+//
+// Not routed through a lock (plain RAM accesses): the keyboard data register
+// and the floppy DATA high byte (floppyDataRegAddr + 1).
 
 uint8_t read6502(uint16_t address) {
   if (devicesReady) {
@@ -139,6 +186,11 @@ void write6502(uint16_t address, uint8_t value) {
   }
   mem6502[address] = value;
 }
+
+// ============================================================================
+// Fake6502 CPU core (Mike Chambers) — kept close to the original from here
+// down to hookexternal(): addressing modes, opcode handlers, cycle tables.
+// ============================================================================
 
 // addressing mode functions, calculates effective addresses
 static void imp(void);
@@ -984,6 +1036,10 @@ static void rra(void) {
 #define rra nop
 #endif
 
+// ─── Interrupts ──────────────────────────────────────────────────────────────
+// Push PC and status, set I, then jump through the vector at $FFFA (NMI) or
+// $FFFE (IRQ/BRK). irq6502() must only be called from the CPU thread; device
+// threads request an IRQ by setting irqPending instead (see cpuLoop).
 void nmi6502(void) {
   push16(pc);
   push8(status);
@@ -998,6 +1054,10 @@ void irq6502(void) {
   pc = (uint16_t)read6502(0xFFFE) | ((uint16_t)read6502(0xFFFF) << 8);
 }
 
+// ─── Execution ───────────────────────────────────────────────────────────────
+// exec6502(): run until `tickcount` more clock cycles have elapsed (unused
+//             by BB6502).
+// step6502(): run exactly one instruction. This is what cpuLoop() uses.
 void exec6502(uint32_t tickcount) {
   clockgoal6502 += tickcount;
 
@@ -1041,6 +1101,7 @@ void step6502(void) {
     (*loopexternal)();
 }
 
+// Register a callback run after every instruction (unused by BB6502).
 void hookexternal(void *funcptr) {
   if (funcptr != (void *)NULL) {
     union {
@@ -1057,6 +1118,13 @@ void hookexternal(void *funcptr) {
 // ─── CPU thread entry point ─────────────────────────────────────────────────
 // SDL2 on macOS requires the event/render loop on the main thread,
 // so the CPU runs on its own pthread instead.
+//
+// The CPU runs flat out (no clock throttling). Before each instruction it
+// checks irqPending: if a device asked for an interrupt and the I flag is
+// clear, the request is consumed and irq6502() is taken. If I is set the
+// request stays pending until the program executes CLI. There is a single
+// pending flag for all devices, so the BIOS IRQ handler must poll every
+// device's status to find out who interrupted.
 static void *cpuLoop(void *arg) {
   (void)arg;
   reset6502();
@@ -1070,6 +1138,12 @@ static void *cpuLoop(void *arg) {
   return NULL;
 }
 
+// ─── Machine bring-up ────────────────────────────────────────────────────────
+// 1. Parse arguments and load the ROM/binary into mem6502.
+// 2. Start each device (each reads its register addresses from the device
+//    table in the freshly loaded ROM, so the ROM must be loaded first).
+// 3. Enable MMIO dispatch, start the CPU thread, run the SDL loop on this
+//    thread until shutdown, then wake the workers and join the CPU thread.
 void fake6502Init(int argc, char **argv) {
   memset(dbgCmdBuf, 0, sizeof(dbgCmdBuf));
   dbgBinFileName = NULL;
@@ -1112,6 +1186,8 @@ void fake6502Init(int argc, char **argv) {
   fclose(f);
 
   // ── Optional floppy image ─────────────────────────────────────────────────
+  // Without -f, floppyInit() starts with a blank (all-zero) disk, so the
+  // bootloader will load zeros and the machine will not boot a kernel.
   if (dbgFloppyFile) {
     snprintf(flpFileName, sizeof(flpFileName), "%s", dbgFloppyFile);
   }
@@ -1139,7 +1215,9 @@ void fake6502Init(int argc, char **argv) {
   // ── Teardown ──────────────────────────────────────────────────────────────
   running = 0;
 
-  // Wake all sleeping device workers so they can see running == 0 and exit
+  // Wake all sleeping device workers so they can see running == 0 and exit.
+  // (Workers are detached, so we don't join them. disptext only exits on
+  // $FF, so it simply dies with the process.)
   pthread_mutex_lock(&floppyLock);
   pthread_cond_signal(&floppyCond);
   pthread_mutex_unlock(&floppyLock);
@@ -1156,6 +1234,9 @@ void fake6502Init(int argc, char **argv) {
   dispgfxCleanup();
 }
 
+// ─── Command line ────────────────────────────────────────────────────────────
+// bb6502_emu <binary> [-f floppy] [-d symbols.dbg]... [-s source] [-u tui|gui]
+// argv[1] is always the binary. Only -f is acted on by this emulator.
 void dbgParseCmdLineArgs(int argc, char **argv) {
   if (argc < 2) {
     fprintf(stdout, "usage: %s <binary> [flags]\n", argv[0]);

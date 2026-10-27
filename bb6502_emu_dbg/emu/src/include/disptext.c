@@ -1,3 +1,6 @@
+// ============================================================================
+// disptext.c — text console worker (see disptext.h for the protocol)
+// ============================================================================
 #include "disptext.h"
 #include "fake6502.h"
 #include <pthread.h>

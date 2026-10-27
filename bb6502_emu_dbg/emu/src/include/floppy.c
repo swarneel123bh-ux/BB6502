@@ -1,3 +1,11 @@
+// ============================================================================
+// floppy.c — floppy controller worker thread (see floppy.h for the protocol)
+//
+// Each command follows the same pattern:
+//   STATUS: IDLE → BUSY, do the work, CMD ← NO_CMD, STATUS: BUSY → IDLE.
+// READ/WRITE additionally simulate seek + rotational delay (real sleep) and
+// set STATUS.IRQ + irqPending when done.
+// ============================================================================
 #include "floppy.h"
 #include "fake6502.h"
 #include <errno.h>
@@ -23,6 +31,7 @@ uint16_t floppyDataRegAddr = 0;
 char flpFileName[FILENAME_MAX] = {0};
 
 static FILE *flpFile;
+// The entire 1.44 MB disk, loaded once at init. All reads/writes go here.
 uint8_t *flpBuffer;
 floppy_t floppy;
 static pthread_t workerThread;
@@ -43,6 +52,8 @@ void floppyInit(void) {
     exit(1);
   }
 
+  // The image must be exactly FLOPPY_TOTAL_CAPACITY bytes (the software
+  // Makefile pads floppy.bin to that size).
   flpFile = fopen(flpFileName, "rb");
   if (!flpFile) {
     fprintf(stderr, "[WARN] No floppy image found, starting blank\n");
@@ -194,6 +205,10 @@ void *floppyWorker(void *args) {
   return NULL;
 }
 
+// Sleep for roughly as long as a real drive would take to reach the target
+// sector: seek (cylinders moved × track-to-track time) + rotational latency
+// (sectors to wait for at 360 RPM) + one sector's transfer time. Then record
+// the new head position so the next access is timed from there.
 static void floppySimulateDelayAndUpdateCHS(uint8_t targetCylinder,
                                             uint8_t targetSector) {
   float rotation_time = 60000.0f / FLOPPY_RPM;
@@ -215,6 +230,9 @@ static void floppySimulateDelayAndUpdateCHS(uint8_t targetCylinder,
   floppyDelayMs((int)total_wait);
 }
 
+// Copy one 512-byte sector at floppy.lba into 6502 RAM at floppy.dmaAddr.
+// The LBA → cylinder/sector conversion is only used for timing; the data
+// offset is simply lba × 512. Bytes that would pass $FFFF are dropped.
 static void floppyReadSector(void) {
   uint8_t sector = (uint8_t)((floppy.lba % FLOPPY_SECTORS_PER_TRACK) + 1);
   uint8_t cylinder =
@@ -229,6 +247,9 @@ static void floppyReadSector(void) {
   }
 }
 
+// Copy 512 bytes from 6502 RAM at floppy.dmaAddr into sector floppy.lba of
+// the in-memory image. NOTE: the image file on disk is never updated, so
+// writes are lost when the emulator exits.
 static void floppyWriteSector(void) {
   uint8_t sector = (uint8_t)((floppy.lba % FLOPPY_SECTORS_PER_TRACK) + 1);
   uint8_t cylinder =
@@ -243,6 +264,7 @@ static void floppyWriteSector(void) {
   }
 }
 
+// Portable millisecond sleep (restarts nanosleep if interrupted by a signal).
 static void floppyDelayMs(int milliseconds) {
 #ifdef _WIN32
   Sleep(milliseconds);

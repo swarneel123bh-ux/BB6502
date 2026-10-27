@@ -1,5 +1,27 @@
 ; ============================================================
 ; bios.s — BIOS code, assembled into the ROM segment
+;
+; Lives in ROM at $8000+ (included from rom.s). Provides:
+;   reset            cold start: init display, print banner, boot kernel
+;   putcg/putsg      output to the 40×30 graphical display
+;   getcg/getsg      keyboard input with echo to the graphical display
+;   putc/puts        output to the text console (host terminal)
+;   getc/gets        keyboard input with echo to the text console
+;   floppy_read/     multi-sector DMA transfers, IRQ-completed
+;   floppy_write
+;   hang / exit      stop the machine (spin forever)
+;   irq / nmi        interrupt handlers (keyboard + floppy completion)
+;   DEVTABLE         device register address table at $FF00
+;
+; Zero-page usage: $00-$0F (see vars.s). Routines communicate through
+; STRPTR / CMPPTR, so callers must not keep live data in them across
+; BIOS calls — in particular floppy_read/floppy_write overwrite both.
+;
+; Interrupts: reset leaves I set. CLI happens inside getc/getcg and during
+; floppy waits; floppy_read/floppy_write SEI again before returning.
+;
+; The kernel links against these routines by symbol (floppy.cfg resolves
+; them from rom.o), so their addresses change whenever this file changes.
 ; ============================================================
 
 .ifndef BIOS_INCLUDED
@@ -24,6 +46,10 @@ BIOS_INCLUDED = 1
 
 ; ============================================================
 ; RESET — cold-start entry point
+;   Reached through the $FFFC vector. Sets up the CPU (I set,
+;   decimal off, SP = $FF), clears BIOS state, configures the
+;   display (VRAM/CRAM location, clear, cursor) and boots the
+;   kernel. Never returns.
 ; ============================================================
 reset:
     sei
@@ -121,6 +147,8 @@ hang:
 
 ; ============================================================
 ; exit — shutdown (alias to hang in current protocol)
+;   There is no "power off" device yet, so the machine just
+;   halts; quit the emulator with ESC.
 ; ============================================================
 exit:
     jmp hang
@@ -167,6 +195,14 @@ dispgfx_update_hw_cursor:
 ; Wraps at column 40, scrolls at row 30.
 ; Does NOT update the hardware cursor — putsg / getsg do that
 ; once after a full string/line for efficiency.
+;
+; Notes:
+;  - CR and LF each start a new line, so a "$0D,$0A" string
+;    ending produces a blank line on this display.
+;  - X is also clobbered when the screen scrolls.
+;  - Only VRAM is written; CRAM_WPTR is advanced on newline
+;    only, so it does not track VRAM_WPTR within a line.
+;  - Backspace does not move back across a line boundary.
 ; ============================================================
 putcg:
     sta DISPGFX_VRAM_SHADOW     ; save character
@@ -483,6 +519,11 @@ puts:
 ; getcg — block until a key is available, return it in A (no echo)
 ; In:  (none)
 ; Out: A = ASCII key; KBD_LAST cleared; X clobbered
+;
+; KBD_LAST is filled by the IRQ handler, so this enables IRQs
+; (CLI) and leaves them enabled. A value of 0 means "no key",
+; so NUL can never be received. getcg and getc are identical;
+; both names exist so text/gfx code reads symmetrically.
 ; ============================================================
 getcg:
     cli                     ; enable IRQs — keyboard is IRQ-driven
@@ -511,8 +552,12 @@ getc:
 
 ; ============================================================
 ; getsg — read a line into a buffer and echo on graphical display
-; In:  STRPTR/STRPTR+1 = destination buffer address
+; In:  STRPTR/STRPTR+1 = destination buffer address (256 B)
 ; Out: A = length (not counting null); buffer null-terminated
+;
+; Ends on CR ($0D) or LF ($0A); the terminator is echoed but
+; not stored. Backspace is echoed (erasing on screen) but is
+; currently stored in the buffer like any other character.
 ; ============================================================
 getsg:
     ldy #$00
@@ -603,6 +648,13 @@ _floppy_wait_cmd:
 ;
 ; Out: Carry clear on success, Carry set on error.
 ;      A, X, Y clobbered.  STRPTR advanced past last byte loaded.
+;      CMPPTR clobbered (used as sector counter / current LBA).
+;      Returns with interrupts disabled (SEI).
+;
+; Per sector: RESET handshake once, then SET_DMA_ADDR ← STRPTR,
+; STORE_LBA ← current LBA, READ_SECTOR, and wait (with IRQs on)
+; for the IRQ handler to set FLOPPY_DONE. STRPTR += 512, LBA++.
+; A count of 0 behaves like 256 (dec wraps before the test).
 ; ============================================================
 floppy_read:
     sta CMPPTR
@@ -670,6 +722,8 @@ floppy_read:
 ;      STRPTR  = 16-bit DMA source address
 ;
 ; Out: Carry clear on success, Carry set on error.
+;      Same register/ZP side effects as floppy_read.
+;      Mirror image of floppy_read with WRITE_SECTOR.
 ; ============================================================
 floppy_write:
     sta CMPPTR
@@ -731,6 +785,12 @@ floppy_write:
 
 ; ============================================================
 ; IRQ handler
+;
+; The emulator has one shared IRQ line, so poll every device:
+;   keyboard: DATA != 0 → copy to KBD_LAST, write 0 to ack
+;   floppy:   STATUS.IRQ set → clear it, set FLOPPY_DONE = 1
+; A, X, Y are saved and restored. BRK also lands here (same
+; vector) and is not distinguished from a hardware IRQ.
 ; ============================================================
 irq:
     pha
@@ -767,7 +827,7 @@ irq:
 
 
 ; ============================================================
-; NMI handler
+; NMI handler — nothing generates an NMI yet
 ; ============================================================
 nmi:
     rti

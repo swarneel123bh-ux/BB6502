@@ -1,3 +1,6 @@
+// ============================================================================
+// kbd.c — terminal keyboard worker (see kbd.h for the protocol)
+// ============================================================================
 #include "kbd.h"
 #include "fake6502.h"
 #include <pthread.h>
@@ -10,6 +13,9 @@ static pthread_t workerThread;
 static uint16_t kbdDataRegAddr;
 static struct termios orig_termios;
 
+// Turn off line buffering and echo so every keypress reaches us at once.
+// VMIN=0 / VTIME=1: read() returns after at most 100 ms even with no input,
+// which lets the worker notice `running` going to 0.
 static void enableRawMode(void) {
   tcgetattr(STDIN_FILENO, &orig_termios);
   struct termios raw = orig_termios;
@@ -19,10 +25,13 @@ static void enableRawMode(void) {
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
+// Restore the terminal settings saved by enableRawMode().
 static void disableRawMode(void) {
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
 
+// Deliver one byte to the 6502: store it in DATA and request an IRQ.
+// Overwrites any byte the CPU has not consumed yet.
 static void kbdDataWrite(uint8_t k) {
   write6502(kbdDataRegAddr, k);
   irqPending = 1; // request IRQ safely; CPU delivers it between instructions

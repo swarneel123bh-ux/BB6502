@@ -1,3 +1,10 @@
+// ============================================================================
+// disptext.h — text console device (6502 → host terminal stdout)
+//
+// This is the "serial console": the BIOS putc/puts routines write here and
+// the characters appear in the terminal that launched the emulator. The
+// graphical 40×30 screen is a separate device (dispgfx.h).
+// ============================================================================
 #pragma once
 
 #include <stdint.h>
@@ -14,5 +21,8 @@
 
 extern uint16_t disptextDataRegAddr;
 
+// Read the DATA register address from the device table ($FF08) and start
+// the worker thread.
 extern void  disptextInit(void);
+// Worker thread: sleeps until DATA != 0, prints it, writes 0 back.
 extern void *disptextWorker(void *args);

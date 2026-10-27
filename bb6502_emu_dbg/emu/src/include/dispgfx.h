@@ -1,3 +1,19 @@
+// ============================================================================
+// dispgfx.h — 40×30 colour text-mode display (SDL window)
+//
+// The screen is drawn straight from 6502 RAM every frame:
+//   VRAM: 1200 bytes, one ASCII char per cell, row-major (row*40 + col)
+//   CRAM: 1200 bytes, one colour attribute per cell (bg << 4 | fg)
+// The 6502 tells the device where VRAM/CRAM live with SET_VRAM / SET_CRAM,
+// then just writes to RAM. Other commands control the hardware cursor,
+// screen clear and border colour.
+//
+// Command protocol (same as the floppy):
+//   write DATA (16-bit) → write CMD → wait until CMD reads back NOP and
+//   STATUS has IDLE set.
+//
+// The SDL window also forwards keypresses to the keyboard register.
+// ============================================================================
 #pragma once
 
 #include <stdint.h>

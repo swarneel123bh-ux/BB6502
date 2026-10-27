@@ -388,6 +388,9 @@ void *dispgfxWorker(void *args) {
 }
 
 // ─── Keyboard forwarding (SDL key → kbd device register) ─────────────────────
+// Same single-register protocol as kbd.c. Keys that produce several bytes
+// (arrow keys → ESC '[' 'A'..'D') are written back-to-back, so the CPU
+// usually sees only the last byte until a key FIFO exists.
 
 static void dispgfxForwardKey(uint8_t k) {
     if (!kbdDataRegAddr_local) return;

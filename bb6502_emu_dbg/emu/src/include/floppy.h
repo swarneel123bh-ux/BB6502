@@ -1,3 +1,20 @@
+// ============================================================================
+// floppy.h — emulated 3.5" 1.44 MB floppy controller with DMA
+//
+// 6502-visible registers (addresses come from the device table at $FF00):
+//   STATUS  IDLE / BUSY / ERROR / IRQ bits (below)
+//   CMD     write a command; the worker resets it to NO_CMD when finished
+//   DATA    2 bytes: DMA address (lo, hi) or LBA (lo byte only, today)
+//
+// Typical sector read, as done by the BIOS floppy_read:
+//   DATA = dest addr, CMD = SET_DMA_ADDR, wait CMD == 0
+//   DATA = lba,       CMD = STORE_LBA,    wait CMD == 0
+//   CMD  = READ_SECTOR  → 512 bytes are DMA'd into RAM, STATUS.IRQ is set
+//                          and an IRQ is raised.
+//
+// The whole disk image is held in RAM (flpBuffer). Writes only change that
+// buffer: they are NOT written back to the image file.
+// ============================================================================
 #pragma once
 
 #include <stdint.h>
@@ -24,6 +41,12 @@ extern uint16_t floppyDataRegAddr;
 extern char flpFileName[FILENAME_MAX];
 
 // ─── Floppy commands ──────────────────────────────────────────────────────────
+//   RESET          no-op handshake (returns to IDLE)
+//   SET_DMA_ADDR   DMA address = DATA (16-bit LE)
+//   STORE_LBA      LBA = DATA low byte (so only sectors 0–255 are reachable)
+//   READ_SECTOR    disk[LBA] → RAM[DMA address], 512 bytes, then IRQ
+//   WRITE_SECTOR   RAM[DMA address] → disk[LBA], 512 bytes, then IRQ
+// READ/WRITE with LBA >= 2880 set STATUS.ERROR (still raise the IRQ).
 enum floppy_commands_t {
     FLOPPY_CMD_NO_CMD       = 0x00,
     FLOPPY_CMD_RESET        = 0x01,
@@ -34,6 +57,7 @@ enum floppy_commands_t {
 };
 
 // ─── Floppy status register bitmasks ─────────────────────────────────────────
+// IRQ is set when a READ/WRITE finishes; the BIOS IRQ handler clears it.
 #define FLOPPY_STATUS_IDLE  0x01
 #define FLOPPY_STATUS_BUSY  0x02
 #define FLOPPY_STATUS_ERROR 0x04
@@ -47,7 +71,8 @@ typedef struct floppy_t {
     uint8_t  sector;
     uint16_t lba;
     uint16_t dmaAddr;
-    // 6502-visible registers (mirrored in mem6502)
+    // 6502-visible registers. Currently unused: the real values live
+    // directly in mem6502 at the addresses above. `head` is unused too.
     uint8_t  status;
     uint8_t  cmd;
     uint8_t  data;
@@ -55,5 +80,8 @@ typedef struct floppy_t {
 
 extern floppy_t floppy;
 
+// Read register addresses from the device table, load the image (or start
+// blank if none / missing), mark STATUS = IDLE and start the worker thread.
 extern void  floppyInit(void);
+// Worker thread: sleeps on floppyCond until CMD != NO_CMD, then executes it.
 extern void *floppyWorker(void *args);

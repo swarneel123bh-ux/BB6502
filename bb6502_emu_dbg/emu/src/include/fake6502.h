@@ -1,4 +1,11 @@
-// Modification of fake6502 emulator by Mike Chambers
+// ============================================================================
+// fake6502.h — shared declarations for the BB6502 threaded emulator
+//
+// Modification of the fake6502 emulator by Mike Chambers. Besides the CPU
+// core API, this header is the "machine bus": every device includes it to
+// get mem6502, the per-device locks, the running/irqPending flags and the
+// device-table addresses below.
+// ============================================================================
 #pragma once
 
 #include <pthread.h>
