@@ -1,12 +1,34 @@
-emulator/tests/vasm
-emulator/tests/vobjdump
-emulator/tests/*.exe
-emulator/tests/*.bat
-emulator/tests/*.dll
-emulator/tests/build/*
-emulator/build/*
+# ---- Personal notes (not part of the repo) ----
+HANDOFF.md
+
+# ---- Build outputs (all trees) ----
+build/
+**/build/
+*.o
+*.d
+*.dbg
+*.map
+*.out
+*.exe
+*.dll
+
+# ---- Generated disk images ----
+*.img
+emulator/floppy.img
+
+# ---- Legacy emulator: generated helper scripts / local tools ----
 emulator/test
 emulator/debug
 emulator/*.bat
-.*
-emulator/.*
+emulator/tests/vasm
+emulator/tests/vobjdump
+emulator/tests/*.bat
+
+# ---- Editor / OS junk ----
+.DS_Store
+.vscode/
+.idea/
+.cache/
+*.swp
+*~
+todo.txt
